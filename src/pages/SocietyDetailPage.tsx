@@ -108,13 +108,13 @@ export function SocietyDetailPage() {
         <div className="max-w-2xl">
           <p className="chip w-fit">{society.city || "Society view"}</p>
           <h1 className="mt-4 text-4xl font-bold md:text-6xl">{society.name}</h1>
-          <p className="mt-4 max-w-2xl text-white/70">{society.address}</p>
+          <p className="mt-4 max-w-2xl text-[#5B6B85]">{society.address}</p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <GlassCard className="flex items-center gap-3 px-4 py-3">
               <UserPlus size={18} className="text-leaf" />
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/50">Invite code</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-[#8FA4C0]">Invite code</p>
                 <p className="font-semibold">{society.inviteCode}</p>
               </div>
             </GlassCard>
@@ -125,9 +125,9 @@ export function SocietyDetailPage() {
         </div>
 
         <GlassCard className="w-full p-5 md:w-80">
-          <p className="text-sm text-white/60">Units tracked</p>
+          <p className="text-sm text-[#5B6B85]">Units tracked</p>
           <strong className="mt-3 block text-5xl">{units.length}</strong>
-          <p className="mt-3 text-sm text-white/55">
+          <p className="mt-3 text-sm text-[#5B6B85]">
             Members can join with this invite code. Admins can add and edit the society, units, and records.
           </p>
         </GlassCard>
@@ -136,7 +136,7 @@ export function SocietyDetailPage() {
       <section className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold">RWH units</h2>
-          <p className="text-sm text-white/55">View the units for this society.</p>
+          <p className="text-sm text-[#5B6B85]">View the units for this society.</p>
         </div>
         {canManageRecords && (
           <button className="primary-btn" onClick={() => setModal("create-unit")}>
@@ -180,10 +180,10 @@ export function SocietyDetailPage() {
           {units.map((unit) => (
             <Link key={unit.id} to={`/units/${unit.id}`} className="glass-card group p-5">
               <div className="flex items-start justify-between">
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-leaf/20 text-leaf">
+                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF4FB] text-leaf">
                   <Droplets size={21} />
                 </span>
-                <ArrowUpRight className="text-white/45 transition group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-leaf" size={18} />
+                <ArrowUpRight className="text-[#8FA4C0] transition group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-leaf" size={18} />
               </div>
               <h3 className="mt-5 text-xl font-semibold">Unit #{unit.id}</h3>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -246,7 +246,7 @@ export function SocietyDetailPage() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-white/8 p-3">
-      <p className="text-xs text-white/45">{label}</p>
+      <p className="text-xs text-[#8FA4C0]">{label}</p>
       <p className="mt-1 font-semibold">{value}</p>
     </div>
   );

@@ -31,7 +31,7 @@ export function SocietyForm({
       <input required placeholder="Society name" value={payload.name} onChange={(event) => setPayload({ ...payload, name: event.target.value })} />
       <input required placeholder="Address" value={payload.address} onChange={(event) => setPayload({ ...payload, address: event.target.value })} />
       <input placeholder="City" value={payload.city} onChange={(event) => setPayload({ ...payload, city: event.target.value })} />
-      {error && <p className="rounded-2xl bg-red-950/50 px-4 py-3 text-sm text-red-50">{error}</p>}
+      {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       <button className="primary-btn" disabled={isSaving}>{isSaving ? "Saving..." : submitLabel ?? "Create society"}</button>
     </form>
   );
@@ -55,8 +55,8 @@ export function JoinSocietyForm({
         value={inviteCode}
         onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
       />
-      <p className="text-sm text-white/55">Enter the invite code shared by the society admin.</p>
-      {error && <p className="rounded-2xl bg-red-950/50 px-4 py-3 text-sm text-red-50">{error}</p>}
+      <p className="text-sm text-[#5B6B85]">Enter the invite code shared by the society admin.</p>
+      {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       <button className="primary-btn" disabled={isSaving}>{isSaving ? "Joining..." : "Join society"}</button>
     </form>
   );

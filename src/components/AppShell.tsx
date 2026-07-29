@@ -2,6 +2,7 @@ import { Droplets, Home, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Footer } from "./Footer";
 import { SocietySwitcher } from "./SocietySwitcher";
 
 export function AppShell() {
@@ -9,11 +10,11 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="app-bg min-h-screen text-mist">
+    <div className="app-bg flex min-h-screen flex-col text-[#22314A]">
       <header className="sticky top-0 z-40 px-4 py-4 md:px-8">
-        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/15 bg-white/10 px-3 py-2 shadow-glass backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/70 bg-white/85 px-3 py-2 shadow-glass backdrop-blur-xl">
           <Link to="/" className="flex items-center gap-2 rounded-full pr-3 text-sm font-semibold">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-leaf text-charcoal">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#2B6CB0] text-white">
               <Droplets size={20} />
             </span>
             AquaPulse
@@ -32,7 +33,7 @@ export function AppShell() {
           <div className="hidden items-center gap-3 md:flex">
             <div className="text-right text-xs">
               <p className="font-semibold">{user?.fullName}</p>
-              <p className="text-white/55">{user?.role}</p>
+              <p className="text-[#5B6B85]">{user?.role}</p>
             </div>
           </div>
           <button className="icon-btn md:hidden" onClick={() => setOpen((value) => !value)} aria-label="Menu">
@@ -40,11 +41,11 @@ export function AppShell() {
           </button>
         </div>
         {open && (
-          <div className="mx-auto mt-3 grid max-w-7xl gap-2 rounded-3xl border border-white/15 bg-charcoal/90 p-3 shadow-glass backdrop-blur-xl md:hidden">
+          <div className="mx-auto mt-3 grid max-w-7xl gap-2 rounded-3xl border border-white/70 bg-white/92 p-3 shadow-glass backdrop-blur-xl md:hidden">
             <NavLink to="/" onClick={() => setOpen(false)} className="mobile-link">
               Overview
             </NavLink>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-3">
+            <div className="rounded-3xl border border-white/80 bg-white/70 p-3">
               <SocietySwitcher />
             </div>
             <button className="mobile-link text-left" onClick={logout}>
@@ -53,9 +54,10 @@ export function AppShell() {
           </div>
         )}
       </header>
-      <main className="mx-auto max-w-7xl px-4 pb-10 md:px-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 px-4 pb-10 md:px-8">
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 }

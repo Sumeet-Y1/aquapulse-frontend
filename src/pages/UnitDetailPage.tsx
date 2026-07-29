@@ -119,14 +119,14 @@ export function UnitDetailPage() {
         <div>
           <p className="chip w-fit">{unit.societyName}</p>
           <h1 className="mt-4 text-4xl font-bold md:text-6xl">Unit #{unit.id}</h1>
-          <p className="mt-4 max-w-xl text-white/70">
+          <p className="mt-4 max-w-xl text-[#5B6B85]">
             {unit.tankCapacityLiters.toLocaleString()} L tank capacity across {unit.rooftopAreaSqm.toLocaleString()} sqm rooftop catchment.
           </p>
         </div>
         <GlassCard className="w-full p-5 md:w-80">
-          <p className="text-sm text-white/60">Current storage</p>
+          <p className="text-sm text-[#5B6B85]">Current storage</p>
           <strong className="mt-3 block text-5xl">{latest ? `${latest.storageLevelPercent}%` : "--"}</strong>
-          <p className="mt-3 text-sm text-white/55">
+          <p className="mt-3 text-sm text-[#5B6B85]">
             {latest ? `${latest.waterCollectedLiters.toLocaleString()} L collected on ${latest.readingDate}` : "Log a reading to unlock storage trends."}
           </p>
         </GlassCard>
@@ -168,7 +168,7 @@ export function UnitDetailPage() {
               <h2 className="text-lg font-semibold">Rainfall</h2>
             </div>
             <p className="mt-4 text-4xl font-bold">{weather ? `${weather.rainfallMm} mm` : "--"}</p>
-            <p className="mt-2 text-sm text-white/55">{weather ? weather.city : "Weather unavailable for this society context."}</p>
+            <p className="mt-2 text-sm text-[#5B6B85]">{weather ? weather.city : "Weather unavailable for this society context."}</p>
           </GlassCard>
           <GlassCard className="p-5">
             <div className="flex items-center justify-between gap-3">
@@ -190,8 +190,8 @@ export function UnitDetailPage() {
                 Refresh
               </button>
             </div>
-            <p className="mt-4 text-sm leading-6 text-white/70">{insight || "Fetch a Groq-powered operational summary for this unit."}</p>
-            {insightError && <p className="mt-3 rounded-2xl bg-red-950/50 px-4 py-3 text-sm text-red-50">{insightError}</p>}
+            <p className="mt-4 text-sm leading-6 text-[#5B6B85]">{insight || "Fetch a Groq-powered operational summary for this unit."}</p>
+            {insightError && <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{insightError}</p>}
           </GlassCard>
         </div>
       </section>
@@ -213,12 +213,12 @@ export function UnitDetailPage() {
         <div className="mt-5 grid gap-3">
           {maintenance.length ? (
             maintenance.map((log) => (
-              <div key={log.id} className="rounded-3xl bg-white/8 p-4">
+              <div key={log.id} className="rounded-3xl bg-white/85 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong>{log.type}</strong>
                   <span className="chip">{log.status}</span>
                 </div>
-                <p className="mt-2 text-sm text-white/60">{log.notes || "No notes added."}</p>
+                <p className="mt-2 text-sm text-[#5B6B85]">{log.notes || "No notes added."}</p>
                 <p className="mt-3 text-xs uppercase tracking-[0.18em] text-sage">
                   {log.maintenanceDate}
                   {log.nextDueDate ? ` -> due ${log.nextDueDate}` : ""}

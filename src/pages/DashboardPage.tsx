@@ -95,7 +95,7 @@ export function DashboardPage() {
           <h1 className="mt-4 max-w-xl text-4xl font-bold leading-tight md:text-6xl">
             Welcome back, {user?.fullName?.split(" ")[0] ?? "there"}.
           </h1>
-          <p className="mt-4 max-w-xl text-white/70">
+          <p className="mt-4 max-w-xl text-[#5B6B85]">
             Manage one society at a time, switch between memberships, and keep your rainwater system view focused.
           </p>
           <div className="mt-6">
@@ -104,11 +104,11 @@ export function DashboardPage() {
         </div>
         <GlassCard className="w-full p-5 md:w-80">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-white/65">Selected society</p>
+            <p className="text-sm text-[#5B6B85]">Selected society</p>
             <Building2 size={18} className="text-leaf" />
           </div>
           <strong className="mt-3 block text-2xl">{selectedSociety?.name ?? "None selected"}</strong>
-          <p className="mt-2 text-sm text-white/60">{selectedSociety?.address ?? "Join or create a society to get started."}</p>
+          <p className="mt-2 text-sm text-[#5B6B85]">{selectedSociety?.address ?? "Join or create a society to get started."}</p>
           <div className="mt-4 flex items-center gap-2">
             {canManageSocieties && (
               <button className="secondary-btn" onClick={() => setModal("create")}>
@@ -124,11 +124,11 @@ export function DashboardPage() {
 
       {error && <ErrorState message={error} />}
       {notice && (
-        <div className="rounded-3xl border border-leaf/30 bg-leaf/10 px-5 py-4 text-sm text-mist">
+        <div className="rounded-3xl border border-[#BFD7EC] bg-[#F7FBFE] px-5 py-4 text-sm text-[#22314A]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-semibold">{notice.title}</p>
-              <p className="mt-1 text-white/75">{notice.detail}</p>
+              <p className="mt-1 text-[#5B6B85]">{notice.detail}</p>
             </div>
             {notice.inviteCode && (
               <button
@@ -157,7 +157,7 @@ export function DashboardPage() {
           <section className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-2xl font-semibold">{selectedSociety.name}</h2>
-              <p className="text-sm text-white/55">{selectedSociety.address}</p>
+              <p className="text-sm text-[#5B6B85]">{selectedSociety.address}</p>
             </div>
             <Link className="chip" to={`/societies/${selectedSociety.id}`}>
               Open society view
@@ -170,7 +170,7 @@ export function DashboardPage() {
                 <Waves className="text-leaf" size={18} />
                 <div>
                   <h3 className="text-lg font-semibold">Recent signal</h3>
-                  <p className="text-sm text-white/55">{stats.latestReadingLabel}</p>
+                  <p className="text-sm text-[#5B6B85]">{stats.latestReadingLabel}</p>
                 </div>
               </div>
               <div className="hidden md:block">
@@ -195,17 +195,17 @@ export function DashboardPage() {
                 return (
                   <Link key={unit.id} to={`/units/${unit.id}`} className="glass-card group p-5">
                     <div className="flex items-start justify-between">
-                      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-leaf/20 text-leaf">
+                      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF4FB] text-leaf">
                         <Building2 size={21} />
                       </span>
-                      <ArrowUpRight className="text-white/45 transition group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-leaf" size={18} />
+                      <ArrowUpRight className="text-[#8FA4C0] transition group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-leaf" size={18} />
                     </div>
                     <h3 className="mt-5 text-xl font-semibold">Unit #{unit.id}</h3>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                       <Metric label="Tank" value={`${unit.tankCapacityLiters.toLocaleString()} L`} />
                       <Metric label="Rooftop" value={`${unit.rooftopAreaSqm.toLocaleString()} sqm`} />
                     </div>
-                    <p className="mt-4 text-sm text-white/65">
+                    <p className="mt-4 text-sm text-[#5B6B85]">
                       {latest ? `Storage ${latest.storageLevelPercent.toFixed(0)}%` : "No readings yet"}
                     </p>
                     <p className="mt-5 text-xs uppercase tracking-[0.22em] text-sage">Installed {unit.installDate || "date pending"}</p>
@@ -298,7 +298,7 @@ export function DashboardPage() {
 function Stat({ title, value }: { title: string; value: number | string }) {
   return (
     <GlassCard className="p-5">
-      <p className="text-sm text-white/60">{title}</p>
+      <p className="text-sm text-[#5B6B85]">{title}</p>
       <strong className="mt-3 block text-3xl">{value}</strong>
     </GlassCard>
   );
@@ -307,7 +307,7 @@ function Stat({ title, value }: { title: string; value: number | string }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-white/8 p-3">
-      <p className="text-xs text-white/45">{label}</p>
+      <p className="text-xs text-[#8FA4C0]">{label}</p>
       <p className="mt-1 font-semibold">{value}</p>
     </div>
   );

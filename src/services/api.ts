@@ -21,6 +21,7 @@ import type {
 const TOKEN_KEY = "aquapulse_token";
 const USER_KEY = "aquapulse_user";
 const memoryStorage = new Map<string, string>();
+const DEFAULT_API_URL = "https://aquapulse-kbbf.onrender.com";
 
 function readStorage(key: string) {
   try {
@@ -64,7 +65,7 @@ export const userStore = {
 };
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: (import.meta.env.VITE_API_URL as string | undefined)?.trim() || DEFAULT_API_URL,
   headers: { "Content-Type": "application/json" },
 });
 

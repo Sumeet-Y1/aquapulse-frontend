@@ -15,6 +15,10 @@ export interface GoogleAuthResponse {
   pendingFullName: string | null;
 }
 
+export interface RegisterResponse {
+  message: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -30,10 +34,29 @@ export interface GoogleAuthRequest {
   idToken: string;
 }
 
+export interface FacebookAuthRequest {
+  accessToken: string;
+}
+
 export interface CompleteGoogleSignupRequest {
   email: string;
   fullName: string;
   role: Role;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  code: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
 }
 
 export interface SocietyRequest {

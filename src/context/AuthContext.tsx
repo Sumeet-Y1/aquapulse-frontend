@@ -3,17 +3,26 @@ import { authApi, tokenStore, userStore } from "../services/api";
 import type {
   AuthResponse,
   CompleteGoogleSignupRequest,
+  FacebookAuthRequest,
+  ForgotPasswordRequest,
   GoogleAuthResponse,
   LoginRequest,
   RegisterRequest,
+  ResetPasswordRequest,
+  VerifyOtpRequest,
 } from "../types/api";
 
 interface AuthContextValue {
   user: AuthResponse | null;
   isAuthenticated: boolean;
-  login: (payload: LoginRequest) => Promise<void>;
-  register: (payload: RegisterRequest) => Promise<void>;
+  login: (payload: LoginRequest) => Promise<AuthResponse>;
+  register: (payload: RegisterRequest) => Promise<{ message: string }>;
+  verifyEmail: (payload: VerifyOtpRequest) => Promise<AuthResponse>;
+  resendVerification: (email: string) => Promise<{ message: string }>;
+  forgotPassword: (payload: ForgotPasswordRequest) => Promise<{ message: string }>;
+  resetPassword: (payload: ResetPasswordRequest) => Promise<{ message: string }>;
   googleLogin: (idToken: string) => Promise<GoogleAuthResponse>;
+  facebookLogin: (accessToken: string) => Promise<GoogleAuthResponse>;
   completeGoogleSignup: (payload: CompleteGoogleSignupRequest) => Promise<AuthResponse>;
   logout: () => void;
 }
@@ -33,10 +42,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       isAuthenticated: Boolean(user && tokenStore.get()),
-      login: async (payload) => persist(await authApi.login(payload)),
-      register: async (payload) => persist(await authApi.register(payload)),
+      login: async (payload) => {
+        const authResponse = await authApi.login(payload);
+        persist(authResponse);
+        return authResponse;
+      },
+      register: (payload) => authApi.register(payload),
+      verifyEmail: async (payload) => {
+        const authResponse = await authApi.verifyEmail(payload);
+        persist(authResponse);
+        return authResponse;
+      },
+      resendVerification: async (email) => authApi.resendVerification(email),
+      forgotPassword: async (payload) => authApi.forgotPassword(payload),
+      resetPassword: async (payload) => authApi.resetPassword(payload),
       googleLogin: async (idToken) => {
         const response = await authApi.google({ idToken });
+        if (response.authResponse) {
+          persist(response.authResponse);
+        }
+        return response;
+      },
+      facebookLogin: async (accessToken) => {
+        const response = await authApi.facebook({ accessToken });
         if (response.authResponse) {
           persist(response.authResponse);
         }

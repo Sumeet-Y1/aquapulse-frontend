@@ -2,17 +2,22 @@ import axios from "axios";
 import type {
   AuthResponse,
   CompleteGoogleSignupRequest,
+  FacebookAuthRequest,
+  ForgotPasswordRequest,
   GoogleAuthRequest,
   GoogleAuthResponse,
   InsightResponse,
   LoginRequest,
   MaintenanceLogRequest,
   MaintenanceLogResponse,
+  RegisterResponse,
   RegisterRequest,
   RWHUnitRequest,
   RWHUnitResponse,
   SocietyRequest,
   SocietyResponse,
+  ResetPasswordRequest,
+  VerifyOtpRequest,
   WaterReadingRequest,
   WaterReadingResponse,
   WeatherRainfallResponse,
@@ -115,8 +120,15 @@ export function getApiErrorMessage(error: unknown, fallback = "Something went wr
 
 export const authApi = {
   login: (payload: LoginRequest) => unwrap(api.post<AuthResponse>("/api/auth/login", payload)),
-  register: (payload: RegisterRequest) => unwrap(api.post<AuthResponse>("/api/auth/register", payload)),
+  register: (payload: RegisterRequest) => unwrap(api.post<RegisterResponse>("/api/auth/register", payload)),
+  verifyEmail: (payload: VerifyOtpRequest) => unwrap(api.post<AuthResponse>("/api/auth/verify-email", payload)),
+  resendVerification: (email: string) => unwrap(api.post<{ message: string }>("/api/auth/resend-verification", { email })),
+  forgotPassword: (payload: ForgotPasswordRequest) =>
+    unwrap(api.post<{ message: string }>("/api/auth/forgot-password", payload)),
+  resetPassword: (payload: ResetPasswordRequest) =>
+    unwrap(api.post<{ message: string }>("/api/auth/reset-password", payload)),
   google: (payload: GoogleAuthRequest) => unwrap(api.post<GoogleAuthResponse>("/api/auth/google", payload)),
+  facebook: (payload: FacebookAuthRequest) => unwrap(api.post<GoogleAuthResponse>("/api/auth/facebook", payload)),
   googleComplete: (payload: CompleteGoogleSignupRequest) =>
     unwrap(api.post<AuthResponse>("/api/auth/google/complete", payload)),
 };

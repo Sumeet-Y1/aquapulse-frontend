@@ -1,12 +1,12 @@
 import { AxiosError } from "axios";
-import { ArrowRight, ChevronDown, Droplets, Home, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Droplets, Facebook, Home, KeyRound, RotateCcw, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Modal } from "../components/Modal";
 import { Footer } from "../components/Footer";
+import { Modal } from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { getApiErrorMessage } from "../services/api";
-import type { Role } from "../types/api";
+import type { GoogleAuthResponse, Role } from "../types/api";
 
 declare global {
   interface Window {
@@ -18,26 +18,56 @@ declare global {
         };
       };
     };
+    FB?: {
+      init: (config: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
+      login: (
+        callback: (response: { status?: string; authResponse?: { accessToken: string } | null }) => void,
+        options?: Record<string, unknown>,
+      ) => void;
+    };
+    fbAsyncInit?: () => void;
   }
 }
 
-type GooglePendingSignup = {
+type AuthScreen = "login" | "signup" | "verify-email" | "forgot-request" | "forgot-reset";
+
+type PendingSocialSignup = {
+  provider: "Google" | "Facebook";
   email: string;
   fullName: string;
 };
 
 export function LoginPage() {
-  const { isAuthenticated, login, register, googleLogin, completeGoogleSignup } = useAuth();
+  const {
+    isAuthenticated,
+    login,
+    register,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
+    googleLogin,
+    facebookLogin,
+    completeGoogleSignup,
+  } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", role: "ADMIN" });
+
+  const [screen, setScreen] = useState<AuthScreen>("login");
+  const [authForm, setAuthForm] = useState({ fullName: "", email: "", password: "", role: "ADMIN" });
+  const [verificationForm, setVerificationForm] = useState({ email: "", code: "" });
+  const [forgotForm, setForgotForm] = useState({ email: "", code: "", newPassword: "" });
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
-  const [pendingGoogleSignup, setPendingGoogleSignup] = useState<GooglePendingSignup | null>(null);
+  const [facebookReady, setFacebookReady] = useState(false);
+  const [pendingSocialSignup, setPendingSocialSignup] = useState<PendingSocialSignup | null>(null);
   const [googleRole, setGoogleRole] = useState<Role | null>(null);
-  const [googleError, setGoogleError] = useState("");
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const isPrimaryAuthScreen = screen === "login" || screen === "signup";
+  const loginMode = screen === "login";
+  const signupMode = screen === "signup";
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -45,13 +75,20 @@ export function LoginPage() {
         setRoleMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
+    if (screen !== "signup") {
+      setRoleMenuOpen(false);
+    }
+  }, [screen]);
+
+  useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-    if (!clientId) return;
+    if (!clientId || !isPrimaryAuthScreen) return;
 
     const initializeGoogle = () => {
       window.google?.accounts.id.initialize({
@@ -59,30 +96,11 @@ export function LoginPage() {
         callback: async ({ credential }) => {
           try {
             setError("");
-            setGoogleError("");
+            setNotice("");
             const response = await googleLogin(credential);
-
-            if (response.needsRoleSelection) {
-              if (!response.pendingEmail || !response.pendingFullName) {
-                setGoogleError("Google sign-in needs role selection, but the account details were incomplete.");
-                return;
-              }
-
-              setPendingGoogleSignup({
-                email: response.pendingEmail,
-                fullName: response.pendingFullName,
-              });
-              return;
-            }
-
-            if (response.authResponse) {
-              navigate("/");
-              return;
-            }
-
-            setGoogleError("Google sign-in returned an unexpected response.");
+            await processSocialResponse("Google", response);
           } catch (caught) {
-            setGoogleError(getApiErrorMessage(caught, "Unable to sign in with Google."));
+            setError(getApiErrorMessage(caught, "Unable to sign in with Google."));
           }
         },
       });
@@ -110,20 +128,95 @@ export function LoginPage() {
     script.async = true;
     script.onload = initializeGoogle;
     document.body.appendChild(script);
-  }, [googleLogin, navigate]);
+  }, [googleLogin, isPrimaryAuthScreen]);
+
+  useEffect(() => {
+    const appId = import.meta.env.VITE_FACEBOOK_APP_ID as string | undefined;
+    if (!appId || !isPrimaryAuthScreen) return;
+
+    const initializeFacebook = () => {
+      if (!window.FB) return;
+      window.FB.init({
+        appId,
+        cookie: true,
+        xfbml: false,
+        version: "v20.0",
+      });
+      setFacebookReady(true);
+    };
+
+    window.fbAsyncInit = initializeFacebook;
+
+    if (window.FB) {
+      initializeFacebook();
+      return;
+    }
+
+    const scriptId = "facebook-jssdk";
+    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (existingScript) {
+      existingScript.addEventListener("load", initializeFacebook, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeFacebook;
+    document.body.appendChild(script);
+  }, [isPrimaryAuthScreen]);
 
   if (isAuthenticated) return <Navigate to="/" replace />;
 
-  const submit = async (event: React.FormEvent) => {
+  const submitPrimaryAuth = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError("");
+    setNotice("");
+
     try {
-      if (mode === "login") {
-        await login({ email: form.email, password: form.password });
-      } else {
-        await register({ fullName: form.fullName, email: form.email, password: form.password, role: form.role as Role });
+      if (screen === "login") {
+        await login({ email: authForm.email, password: authForm.password });
+        navigate("/");
+        return;
       }
+
+      const response = await register({
+        fullName: authForm.fullName,
+        email: authForm.email,
+        password: authForm.password,
+        role: authForm.role as Role,
+      });
+
+      setVerificationForm({ email: authForm.email, code: "" });
+      setScreen("verify-email");
+      setNotice(response.message || "Registration successful. Please check your email for a verification code.");
+    } catch (caught) {
+      if (screen === "login" && isUnverifiedLoginError(caught)) {
+        setVerificationForm({ email: authForm.email, code: "" });
+        setScreen("verify-email");
+        setNotice("Please verify your email before logging in.");
+      } else {
+        setError(getError(caught));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitVerification = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await verifyEmail({
+        email: verificationForm.email,
+        code: verificationForm.code,
+      });
       navigate("/");
     } catch (caught) {
       setError(getError(caught));
@@ -132,26 +225,139 @@ export function LoginPage() {
     }
   };
 
-  const completeRoleSelection = async (role: Role) => {
-    if (!pendingGoogleSignup) return;
+  const resendVerificationCode = async () => {
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await resendVerification(verificationForm.email);
+      setNotice(response.message);
+    } catch (caught) {
+      setError(getError(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitForgotRequest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await forgotPassword({ email: forgotForm.email });
+      setForgotForm((prev) => ({ ...prev, code: "", newPassword: "" }));
+      setScreen("forgot-reset");
+      setNotice(response.message);
+    } catch (caught) {
+      setError(getError(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitForgotReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await resetPassword({
+        email: forgotForm.email,
+        code: forgotForm.code,
+        newPassword: forgotForm.newPassword,
+      });
+
+      setAuthForm((prev) => ({ ...prev, email: forgotForm.email, password: "" }));
+      setScreen("login");
+      setNotice(response.message);
+      setForgotForm({ email: forgotForm.email, code: "", newPassword: "" });
+    } catch (caught) {
+      setError(getError(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGoogleCompleteSignup = async (role: Role) => {
+    if (!pendingSocialSignup) return;
     setSaving(true);
     setGoogleRole(role);
-    setGoogleError("");
+    setError("");
+    setNotice("");
 
     try {
       await completeGoogleSignup({
-        email: pendingGoogleSignup.email,
-        fullName: pendingGoogleSignup.fullName,
+        email: pendingSocialSignup.email,
+        fullName: pendingSocialSignup.fullName,
         role,
       });
-      setPendingGoogleSignup(null);
+      setPendingSocialSignup(null);
       navigate("/");
     } catch (caught) {
-      setGoogleError(getError(caught));
+      setError(getError(caught));
     } finally {
       setSaving(false);
       setGoogleRole(null);
     }
+  };
+
+  const handleFacebookLogin = async () => {
+    if (!facebookReady) {
+      setError("Facebook Sign-In is still loading. Please try again in a moment.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const accessToken = await new Promise<string>((resolve, reject) => {
+        window.FB?.login((fbResponse) => {
+          if (fbResponse.authResponse?.accessToken) {
+            resolve(fbResponse.authResponse.accessToken);
+            return;
+          }
+
+          reject(new Error("Facebook login was cancelled or did not return an access token."));
+        }, { scope: "email,public_profile", return_scopes: true });
+      });
+
+      const response = await facebookLogin(accessToken);
+      await processSocialResponse("Facebook", response);
+    } catch (caught) {
+      setError(getError(caught, "Unable to sign in with Facebook."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const showLoginPrimaryActions = screen === "login" || screen === "signup";
+  const processSocialResponse = async (provider: "Google" | "Facebook", response: GoogleAuthResponse) => {
+    if (response.needsRoleSelection) {
+      if (!response.pendingEmail || !response.pendingFullName) {
+        setError(`${provider} sign-in needs role selection, but the account details were incomplete.`);
+        return;
+      }
+
+      setPendingSocialSignup({
+        provider,
+        email: response.pendingEmail,
+        fullName: response.pendingFullName,
+      });
+      return;
+    }
+
+    if (response.authResponse) {
+      navigate("/");
+      return;
+    }
+
+    setError(`${provider} sign-in returned an unexpected response.`);
   };
 
   return (
@@ -175,7 +381,6 @@ export function LoginPage() {
         }
       `}</style>
       <section className="mx-auto grid w-full flex-1 max-w-7xl overflow-hidden rounded-[32px] border border-white/70 bg-white/92 shadow-[0_30px_80px_-40px_rgba(43,108,176,0.35)] transition-shadow duration-500 hover:shadow-[0_35px_90px_-35px_rgba(43,108,176,0.4)] lg:grid-cols-[0.85fr_1.15fr]">
-        {/* Form side */}
         <div className="flex items-center bg-white p-6 sm:p-10">
           <div className="w-full [animation:riseIn_0.55s_ease-out_both]">
             <div className="flex items-center gap-2 text-sm font-semibold text-[#2B6CB0] transition-transform duration-300 hover:translate-x-0.5">
@@ -189,129 +394,394 @@ export function LoginPage() {
               Residential RWH platform
             </p>
             <h2 className="mt-3 text-4xl font-semibold leading-tight text-[#1B2B45] transition-all duration-300 [animation:riseIn_0.6s_ease-out_0.05s_both]">
-              {mode === "login" ? "Welcome back" : "Create your space"}
+              {screen === "login"
+                ? "Welcome back"
+                : screen === "signup"
+                  ? "Create your space"
+                  : screen === "verify-email"
+                    ? "Verify your email"
+                    : screen === "forgot-request"
+                      ? "Forgot password?"
+                      : "Reset your password"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#5B6B85] [animation:riseIn_0.6s_ease-out_0.1s_both]">
-              {mode === "login"
+              {screen === "login"
                 ? "Sign in to check on your society's rainwater storage and rainfall."
-                : "Set up an account to start tracking your society's rainwater harvesting."}
+                : screen === "signup"
+                  ? "Set up an account to start tracking your society's rainwater harvesting."
+                  : screen === "verify-email"
+                    ? "Enter the six-digit code sent to your inbox to finish creating your account."
+                    : screen === "forgot-request"
+                    ? "We'll send a reset code to your email if it's registered."
+                      : "Use the code from your email to set a new password."}
             </p>
 
-            <form className="mt-8 grid gap-4" onSubmit={submit}>
-              {mode === "signup" && (
+            {notice && (
+              <p className="mt-6 rounded-2xl border border-[#BFD7EC] bg-[#F7FBFE] px-4 py-3 text-sm text-[#22314A] [animation:popIn_0.3s_ease-out_both]">
+                {notice}
+              </p>
+            )}
+
+            {screen === "login" || screen === "signup" ? (
+              <form className="mt-8 grid gap-4" onSubmit={submitPrimaryAuth}>
+                {screen === "signup" && (
+                  <input
+                    required
+                    autoComplete="name"
+                    placeholder="Full name"
+                    value={authForm.fullName}
+                    onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })}
+                    className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                  />
+                )}
+
                 <input
                   required
-                  autoComplete="name"
-                  placeholder="Full name"
-                  value={form.fullName}
-                  onChange={(event) => setForm({ ...form, fullName: event.target.value })}
-                  className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01] [animation:riseIn_0.4s_ease-out_both]"
+                  autoComplete="email"
+                  type="email"
+                  placeholder="Email address"
+                  value={authForm.email}
+                  onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                  className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
                 />
-              )}
-              <input
-                required
-                autoComplete="email"
-                type="email"
-                placeholder="Email address"
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
-                className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
-              />
-              <input
-                required
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                type="password"
-                placeholder="Password"
-                value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
-                className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
-              />
-              {mode === "signup" && (
-                <div className="relative [animation:riseIn_0.4s_ease-out_both]" ref={roleMenuRef}>
+
+                <input
+                  required
+                  autoComplete={loginMode ? "current-password" : "new-password"}
+                  type="password"
+                  placeholder="Password"
+                  value={authForm.password}
+                  onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                  className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                />
+
+                {loginMode && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="text-sm text-[#5B6B85] underline decoration-[#B7CDE3] underline-offset-4 transition-colors duration-300 hover:text-[#2B6CB0] hover:decoration-[#2B6CB0]"
+                      onClick={() => {
+                        setForgotForm({ email: authForm.email, code: "", newPassword: "" });
+                        setError("");
+                        setNotice("");
+                        setScreen("forgot-request");
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+
+                {signupMode && (
+                  <div className="relative [animation:riseIn_0.4s_ease-out_both]" ref={roleMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setRoleMenuOpen((open) => !open)}
+                      className="flex h-12 w-full items-center justify-between rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-left text-sm text-[#22314A] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20"
+                      aria-haspopup="listbox"
+                      aria-expanded={roleMenuOpen}
+                    >
+                      {authForm.role === "ADMIN" ? "Admin" : "Resident"}
+                      <ChevronDown
+                        size={18}
+                        className={`text-[#8FA4C0] transition-transform duration-300 ${roleMenuOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    <div
+                      role="listbox"
+                      className={`z-20 origin-top overflow-hidden rounded-2xl border border-[#D7E6F5] bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(43,108,176,0.35)] transition-all duration-200 ease-out ${
+                        roleMenuOpen
+                          ? "pointer-events-auto mt-2 max-h-40 scale-100 opacity-100"
+                          : "pointer-events-none mt-0 max-h-0 scale-95 border-transparent p-0 opacity-0"
+                      }`}
+                    >
+                      {[
+                        { value: "ADMIN", label: "Admin" },
+                        { value: "RESIDENT", label: "Resident" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="option"
+                          aria-selected={authForm.role === option.value}
+                          onClick={() => {
+                            setAuthForm({ ...authForm, role: option.value });
+                            setRoleMenuOpen(false);
+                          }}
+                          className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150 ${
+                            authForm.role === option.value
+                              ? "bg-[#2B6CB0] text-white"
+                              : "text-[#22314A] hover:bg-[#EAF4FB]"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  className="h-12 rounded-2xl bg-[#2B6CB0] text-sm font-semibold text-white transition-all duration-300 ease-out hover:bg-[#245C97] hover:shadow-lg hover:shadow-[#2B6CB0]/25 active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={saving}
+                >
+                  {saving ? "Working..." : screen === "login" ? "Sign in" : "Create account"}
+                </button>
+              </form>
+            ) : screen === "verify-email" ? (
+              <form className="mt-8 grid gap-4" onSubmit={submitVerification}>
+                <input
+                  required
+                  autoComplete="email"
+                  type="email"
+                  placeholder="Email address"
+                  value={verificationForm.email}
+                  onChange={(event) => setVerificationForm({ ...verificationForm, email: event.target.value })}
+                  className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#8FA4C0]">
+                    <KeyRound size={16} />
+                  </span>
+                  <input
+                    required
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit verification code"
+                    value={verificationForm.code}
+                    onChange={(event) =>
+                      setVerificationForm({
+                        ...verificationForm,
+                        code: event.target.value.replace(/\D/g, "").slice(0, 6),
+                      })
+                    }
+                    className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] pl-10 pr-4 text-sm tracking-[0.34em] text-[#22314A] placeholder:tracking-normal placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  className="h-12 rounded-2xl bg-[#2B6CB0] text-sm font-semibold text-white transition-all duration-300 ease-out hover:bg-[#245C97] hover:shadow-lg hover:shadow-[#2B6CB0]/25 active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={saving}
+                >
+                  {saving ? "Verifying..." : "Verify"}
+                </button>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setRoleMenuOpen((open) => !open)}
-                    className="flex h-12 w-full items-center justify-between rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-left text-sm text-[#22314A] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20"
-                    aria-haspopup="listbox"
-                    aria-expanded={roleMenuOpen}
+                    className="text-sm text-[#5B6B85] underline decoration-[#B7CDE3] underline-offset-4 transition-colors duration-300 hover:text-[#2B6CB0] hover:decoration-[#2B6CB0]"
+                    onClick={resendVerificationCode}
+                    disabled={saving || !verificationForm.email}
                   >
-                    {form.role === "ADMIN" ? "Admin" : "Resident"}
-                    <ChevronDown
-                      size={18}
-                      className={`text-[#8FA4C0] transition-transform duration-300 ${roleMenuOpen ? "rotate-180" : ""}`}
-                    />
+                    Resend code
                   </button>
-
-                  <div
-                    role="listbox"
-                    className={`z-20 origin-top overflow-hidden rounded-2xl border border-[#D7E6F5] bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(43,108,176,0.35)] transition-all duration-200 ease-out ${
-                      roleMenuOpen
-                        ? "pointer-events-auto mt-2 max-h-40 scale-100 opacity-100"
-                        : "pointer-events-none mt-0 max-h-0 scale-95 border-transparent p-0 opacity-0"
-                    }`}
+                  <button
+                    type="button"
+                    className="text-sm text-[#5B6B85] transition-colors duration-300 hover:text-[#2B6CB0]"
+                    onClick={() => {
+                      setScreen("login");
+                      setError("");
+                    }}
                   >
-                    {[
-                      { value: "ADMIN", label: "Admin" },
-                      { value: "RESIDENT", label: "Resident" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="option"
-                        aria-selected={form.role === option.value}
-                        onClick={() => {
-                          setForm({ ...form, role: option.value });
-                          setRoleMenuOpen(false);
-                        }}
-                        className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150 ${
-                          form.role === option.value
-                            ? "bg-[#2B6CB0] text-white"
-                            : "text-[#22314A] hover:bg-[#EAF4FB]"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                    Back to login
+                  </button>
                 </div>
-              )}
-              {error && (
-                <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">{error}</p>
-              )}
-              <button
-                className="h-12 rounded-2xl bg-[#2B6CB0] text-sm font-semibold text-white transition-all duration-300 ease-out hover:bg-[#245C97] hover:shadow-lg hover:shadow-[#2B6CB0]/25 active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
-                disabled={saving}
-              >
-                {saving ? "Working..." : mode === "login" ? "Sign in" : "Create account"}
-              </button>
-            </form>
+              </form>
+            ) : screen === "forgot-request" ? (
+              <form className="mt-8 grid gap-4" onSubmit={submitForgotRequest}>
+                <input
+                  required
+                  autoComplete="email"
+                  type="email"
+                  placeholder="Email address"
+                  value={forgotForm.email}
+                  onChange={(event) => setForgotForm({ ...forgotForm, email: event.target.value })}
+                  className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                />
 
-            <div className="mt-5 min-h-11 transition-opacity duration-300" id="googleSignIn" />
-            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-              <p className="mt-2 text-xs text-[#8FA4C0]">Set VITE_GOOGLE_CLIENT_ID to enable Google Sign-In.</p>
-            )}
-            {googleError && (
-              <p className="mt-3 rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">{googleError}</p>
+                {error && (
+                  <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  className="h-12 rounded-2xl bg-[#2B6CB0] text-sm font-semibold text-white transition-all duration-300 ease-out hover:bg-[#245C97] hover:shadow-lg hover:shadow-[#2B6CB0]/25 active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={saving}
+                >
+                  {saving ? "Sending..." : "Send reset code"}
+                </button>
+
+                <button
+                  type="button"
+                  className="text-sm text-[#5B6B85] transition-colors duration-300 hover:text-[#2B6CB0]"
+                  onClick={() => {
+                    setScreen("login");
+                    setError("");
+                  }}
+                >
+                  Back to login
+                </button>
+              </form>
+            ) : (
+              <form className="mt-8 grid gap-4" onSubmit={submitForgotReset}>
+                <input
+                  required
+                  autoComplete="email"
+                  type="email"
+                  placeholder="Email address"
+                  value={forgotForm.email}
+                  onChange={(event) => setForgotForm({ ...forgotForm, email: event.target.value })}
+                  className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] px-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#8FA4C0]">
+                    <KeyRound size={16} />
+                  </span>
+                  <input
+                    required
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="Reset code"
+                    value={forgotForm.code}
+                    onChange={(event) =>
+                      setForgotForm({
+                        ...forgotForm,
+                        code: event.target.value.replace(/\D/g, "").slice(0, 6),
+                      })
+                    }
+                    className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] pl-10 pr-4 text-sm tracking-[0.34em] text-[#22314A] placeholder:tracking-normal placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#8FA4C0]">
+                    <Shield size={16} />
+                  </span>
+                  <input
+                    required
+                    autoComplete="new-password"
+                    type="password"
+                    placeholder="New password"
+                    value={forgotForm.newPassword}
+                    onChange={(event) => setForgotForm({ ...forgotForm, newPassword: event.target.value })}
+                    className="h-12 rounded-2xl border border-[#D7E6F5] bg-[#F7FBFE] pl-10 pr-4 text-sm text-[#22314A] placeholder:text-[#8FA4C0] transition-all duration-300 ease-out focus:border-[#2B6CB0] focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]/20 focus:scale-[1.01]"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  className="h-12 rounded-2xl bg-[#2B6CB0] text-sm font-semibold text-white transition-all duration-300 ease-out hover:bg-[#245C97] hover:shadow-lg hover:shadow-[#2B6CB0]/25 active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={saving}
+                >
+                  {saving ? "Resetting..." : "Reset password"}
+                </button>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 text-sm text-[#5B6B85] underline decoration-[#B7CDE3] underline-offset-4 transition-colors duration-300 hover:text-[#2B6CB0] hover:decoration-[#2B6CB0]"
+                    onClick={async () => {
+                      if (!forgotForm.email) return;
+                      setSaving(true);
+                      setError("");
+                      setNotice("");
+                      try {
+                        const response = await forgotPassword({ email: forgotForm.email });
+                        setNotice(response.message);
+                      } catch (caught) {
+                        setError(getError(caught));
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving || !forgotForm.email}
+                  >
+                    <RotateCcw size={14} />
+                    Request a new code
+                  </button>
+                  <button
+                    type="button"
+                    className="text-sm text-[#5B6B85] transition-colors duration-300 hover:text-[#2B6CB0]"
+                    onClick={() => {
+                      setScreen("login");
+                      setError("");
+                    }}
+                  >
+                    Back to login
+                  </button>
+                </div>
+              </form>
             )}
 
-            <button
-              type="button"
-              className="mt-8 text-sm text-[#5B6B85] underline decoration-[#B7CDE3] underline-offset-4 transition-colors duration-300 hover:text-[#2B6CB0] hover:decoration-[#2B6CB0]"
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            >
-              {mode === "login" ? "Need an account? Sign up" : "Already registered? Sign in"}
-            </button>
+            {showLoginPrimaryActions && (
+              <>
+                <div className="mt-5 min-h-11 transition-opacity duration-300" id="googleSignIn" />
+                {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                  <p className="mt-2 text-xs text-[#8FA4C0]">Set VITE_GOOGLE_CLIENT_ID to enable Google Sign-In.</p>
+                )}
+
+                <button
+                  type="button"
+                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D7E6F5] bg-white px-4 text-sm font-semibold text-[#22314A] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#F7FBFE] hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleFacebookLogin}
+                  disabled={saving || !facebookReady}
+                >
+                  <Facebook size={18} className="text-[#1877F2]" />
+                  {facebookReady ? "Continue with Facebook" : "Loading Facebook..."}
+                </button>
+
+                <button
+                  type="button"
+                  className="mt-8 text-sm text-[#5B6B85] underline decoration-[#B7CDE3] underline-offset-4 transition-colors duration-300 hover:text-[#2B6CB0] hover:decoration-[#2B6CB0]"
+                  onClick={() => {
+                    setError("");
+                    setNotice("");
+                    setScreen(loginMode ? "signup" : "login");
+                  }}
+                >
+                  {loginMode ? "Need an account? Sign up" : "Already registered? Sign in"}
+                </button>
+              </>
+            )}
+
+            {!showLoginPrimaryActions && (
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[#D7E6F5] bg-white px-4 py-3 text-sm font-semibold text-[#22314A] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#F7FBFE] hover:shadow-md active:scale-[0.98]"
+                  onClick={() => {
+                    setScreen("login");
+                    setError("");
+                  }}
+                >
+                  <ArrowLeft size={16} />
+                  Back to login
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Illustration side */}
         <div className="relative hidden min-h-[320px] overflow-hidden bg-gradient-to-b from-[#BFE3F7] via-[#8FCBEC] to-[#2B6CB0] lg:block [animation:slideInRight_0.6s_ease-out_both]">
-          <svg
-            className="absolute inset-0 h-full w-full"
-            viewBox="0 0 600 800"
-            preserveAspectRatio="xMidYMid slice"
-            fill="none"
-          >
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" fill="none">
             <defs>
               <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#FFFDF5" stopOpacity="0.9" />
@@ -328,19 +798,13 @@ export function LoginPage() {
               </linearGradient>
             </defs>
 
-            {/* soft sky depth wash */}
             <rect x="0" y="0" width="600" height="420" fill="url(#skyDepth)" />
-
-            {/* sun glow, upper right, out of the way of the copy */}
             <circle cx="460" cy="150" r="150" fill="url(#sunGlow)" />
             <circle cx="460" cy="150" r="46" fill="url(#sunCore)">
               <animate attributeName="r" values="44;50;44" dur="6s" repeatCount="indefinite" />
             </circle>
-
-            {/* distant hazy hills for depth */}
             <path d="M-20 300 Q120 260 260 300 Q380 330 620 290 V420 H-20 Z" fill="#E7F4FC" opacity="0.35" />
 
-            {/* birds */}
             <g stroke="white" strokeOpacity="0.75" strokeWidth="3" strokeLinecap="round" fill="none">
               <path d="M60 130 Q68 122 76 130 Q84 122 92 130">
                 <animate attributeName="opacity" values="0.9;0.5;0.9" dur="5s" repeatCount="indefinite" />
@@ -350,7 +814,6 @@ export function LoginPage() {
               </path>
             </g>
 
-            {/* clouds */}
             <ellipse cx="120" cy="110" rx="70" ry="26" fill="white" opacity="0.55">
               <animate attributeName="cx" values="120;135;120" dur="8s" repeatCount="indefinite" />
             </ellipse>
@@ -364,7 +827,6 @@ export function LoginPage() {
               <animate attributeName="cx" values="90;108;90" dur="12s" repeatCount="indefinite" />
             </ellipse>
 
-            {/* rain */}
             <g stroke="white" strokeOpacity="0.55" strokeWidth="3" strokeLinecap="round">
               <line x1="150" y1="160" x2="138" y2="205">
                 <animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.1s" repeatCount="indefinite" />
@@ -386,7 +848,6 @@ export function LoginPage() {
               </line>
             </g>
 
-            {/* rooftop + tank, simple flat illustration */}
             <g>
               <ellipse cx="300" cy="494" rx="100" ry="14" fill="#1B2B45" opacity="0.08" />
               <polygon points="230,420 300,360 370,420" fill="#F7FBFE" opacity="0.92" />
@@ -397,7 +858,6 @@ export function LoginPage() {
               <line x1="330" y1="392" x2="365" y2="450" stroke="#8FCBEC" strokeWidth="3" strokeOpacity="0.7" strokeLinecap="round" />
             </g>
 
-            {/* layered waves with shimmer */}
             <path d="M0 560 Q150 520 300 560 T600 560 V800 H0 Z" fill="#DDF0FB" opacity="0.5" />
             <path d="M0 620 Q150 580 300 620 T600 620 V800 H0 Z" fill="#BFE3F7" opacity="0.7" />
             <path d="M0 690 Q150 650 300 690 T600 690 V800 H0 Z" fill="#8FCBEC" />
@@ -425,13 +885,14 @@ export function LoginPage() {
         </div>
       </section>
 
-      {pendingGoogleSignup && (
-        <Modal title="Choose your role" onClose={() => setPendingGoogleSignup(null)}>
+      {pendingSocialSignup && (
+        <Modal title="Choose your role" onClose={() => setPendingSocialSignup(null)}>
           <div className="grid gap-4 [animation:popIn_0.25s_ease-out_both]">
             <div className="rounded-[24px] border border-[#D7E6F5] bg-[#F7FBFE] px-4 py-4">
               <p className="text-xs uppercase tracking-[0.22em] text-[#5B9BD5]">Confirming new account</p>
-              <p className="mt-2 text-lg font-semibold text-[#1B2B45]">{pendingGoogleSignup.fullName}</p>
-              <p className="mt-1 text-sm text-[#5B6B85]">{pendingGoogleSignup.email}</p>
+              <p className="mt-2 text-lg font-semibold text-[#1B2B45]">{pendingSocialSignup.fullName}</p>
+              <p className="mt-1 text-sm text-[#5B6B85]">{pendingSocialSignup.email}</p>
+              <p className="mt-2 text-sm text-[#5B6B85]">Provider: {pendingSocialSignup.provider}</p>
             </div>
 
             <p className="text-sm leading-6 text-[#5B6B85]">
@@ -449,7 +910,7 @@ export function LoginPage() {
                   justifyContent: "flex-start",
                   flexDirection: "column",
                 }}
-                onClick={() => completeRoleSelection("ADMIN")}
+                onClick={() => handleGoogleCompleteSignup("ADMIN")}
                 disabled={saving}
               >
                 <span className="flex items-center gap-2 text-base font-semibold">
@@ -475,7 +936,7 @@ export function LoginPage() {
                   justifyContent: "flex-start",
                   flexDirection: "column",
                 }}
-                onClick={() => completeRoleSelection("RESIDENT")}
+                onClick={() => handleGoogleCompleteSignup("RESIDENT")}
                 disabled={saving}
               >
                 <span className="flex items-center gap-2 text-base font-semibold">
@@ -492,23 +953,56 @@ export function LoginPage() {
               </button>
             </div>
 
-            {googleError && (
-              <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">{googleError}</p>
+            {error && (
+              <p className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B3413C] [animation:popIn_0.3s_ease-out_both]">
+                {error}
+              </p>
             )}
           </div>
         </Modal>
       )}
+
       <Footer className="mt-3" />
     </main>
   );
 }
 
-function getError(error: unknown) {
+function isUnverifiedLoginError(error: unknown) {
+  if (!(error instanceof AxiosError)) {
+    return false;
+  }
+
+  const status = error.response?.status;
+  const message = getResponseMessage(error).toLowerCase();
+  return status === 400 && message.includes("verify") && message.includes("email");
+}
+
+function getResponseMessage(error: unknown) {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data;
+    if (typeof data === "string") return data;
+    if (data && typeof data === "object") {
+      const message = (data as { message?: string; error?: string }).message ?? (data as { message?: string; error?: string }).error;
+      if (typeof message === "string") return message;
+    }
+    return error.message;
+  }
+
+  return "";
+}
+
+function getError(error: unknown, fallback = "Something went wrong. Please try again.") {
   if (error instanceof AxiosError) {
     if (error.message === "Network Error") {
       return "Can't reach the backend right now. Make sure the Spring Boot server is running.";
     }
-    return getApiErrorMessage(error);
+
+    return getApiErrorMessage(error, fallback);
   }
-  return "Something went wrong. Please try again.";
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
 }

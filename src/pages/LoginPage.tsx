@@ -59,11 +59,13 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
   const [facebookReady, setFacebookReady] = useState(false);
   const [pendingSocialSignup, setPendingSocialSignup] = useState<PendingSocialSignup | null>(null);
   const [googleRole, setGoogleRole] = useState<Role | null>(null);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
   const isPrimaryAuthScreen = screen === "login" || screen === "signup";
   const loginMode = screen === "login";
@@ -105,9 +107,16 @@ export function LoginPage() {
         },
       });
 
-      const button = document.getElementById("googleSignIn");
-      if (button) {
-        window.google?.accounts.id.renderButton(button, { theme: "outline", size: "large", width: 280 });
+      if (googleButtonRef.current) {
+        googleButtonRef.current.innerHTML = "";
+        window.google?.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          width: 320,
+          shape: "pill",
+          text: "signin_with",
+        });
+        setGoogleReady(true);
       }
     };
 
@@ -358,6 +367,16 @@ export function LoginPage() {
     }
 
     setError(`${provider} sign-in returned an unexpected response.`);
+  };
+
+  const triggerGoogleLogin = () => {
+    const renderedButton = googleButtonRef.current?.querySelector("button");
+    if (renderedButton instanceof HTMLButtonElement) {
+      renderedButton.click();
+      return;
+    }
+
+    setError("Google Sign-In is still loading. Please try again in a moment.");
   };
 
   return (
@@ -733,10 +752,24 @@ export function LoginPage() {
 
             {showLoginPrimaryActions && (
               <>
-                <div className="mt-5 min-h-11 transition-opacity duration-300" id="googleSignIn" />
+                <div
+                  ref={googleButtonRef}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+                />
                 {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
                   <p className="mt-2 text-xs text-[#8FA4C0]">Set VITE_GOOGLE_CLIENT_ID to enable Google Sign-In.</p>
                 )}
+
+                <button
+                  type="button"
+                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D7E6F5] bg-white px-4 text-sm font-semibold text-[#22314A] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#F7FBFE] hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={triggerGoogleLogin}
+                  disabled={saving || !googleReady}
+                >
+                  <GoogleMark />
+                  {googleReady ? "Sign in with Google" : "Loading Google..."}
+                </button>
 
                 <button
                   type="button"
@@ -1005,4 +1038,15 @@ function getError(error: unknown, fallback = "Something went wrong. Please try a
   }
 
   return fallback;
+}
+
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M17.28 9.2c0-.64-.06-1.25-.17-1.84H9v3.48h4.62a4.07 4.07 0 0 1-1.77 2.67v2.22h2.86c1.67-1.53 2.57-3.79 2.57-6.53Z" fill="#4285F4" />
+      <path d="M9 18c2.39 0 4.4-.79 5.86-2.14l-2.86-2.22c-.79.53-1.8.84-3 .84a5.2 5.2 0 0 1-4.89-3.55H1.17v2.3A8.99 8.99 0 0 0 9 18Z" fill="#34A853" />
+      <path d="M4.11 11.08c-.2-.59-.31-1.22-.31-1.88s.11-1.29.31-1.88v-2.3H1.17A8.99 8.99 0 0 0 0 9.2c0 1.45.35 2.82 1.17 4.02l2.94-2.14Z" fill="#FBBC05" />
+      <path d="M9 3.56c1.3 0 2.46.45 3.37 1.33l2.53-2.53A8.5 8.5 0 0 0 9 0 8.99 8.99 0 0 0 1.17 4.02l2.94 2.18A5.2 5.2 0 0 1 9 3.56Z" fill="#EA4335" />
+    </svg>
+  );
 }

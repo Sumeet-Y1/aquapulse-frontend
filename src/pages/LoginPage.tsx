@@ -768,10 +768,6 @@ export function LoginPage() {
                   <span>{googleReady ? "Continue with Google" : "Loading Google..."}</span>
                 </button>
 
-                <p className="mt-3 text-center text-xs leading-5 text-[#7A8BA6]">
-                  Secure Google sign in for verified AquaPulse accounts. No Facebook sign-in is enabled on this page.
-                </p>
-
                 <button
                   type="button"
                   className="mt-8 text-sm text-[#5B6B85] underline decoration-[#B7CDE3] underline-offset-4 transition-colors duration-300 hover:text-[#2B6CB0] hover:decoration-[#2B6CB0]"

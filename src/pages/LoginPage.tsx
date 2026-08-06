@@ -15,6 +15,7 @@ declare global {
         id: {
           initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
           renderButton: (element: HTMLElement, options: Record<string, unknown>) => void;
+          prompt: () => void;
         };
       };
     };
@@ -66,10 +67,48 @@ export function LoginPage() {
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement | null>(null);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const googleInitializedRef = useRef(false);
 
   const isPrimaryAuthScreen = screen === "login" || screen === "signup";
   const loginMode = screen === "login";
   const signupMode = screen === "signup";
+
+  const ensureGoogleClientReady = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+    if (!clientId || !window.google?.accounts?.id || googleInitializedRef.current) {
+      return Boolean(googleInitializedRef.current);
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async ({ credential }) => {
+        try {
+          setError("");
+          setNotice("");
+          const response = await googleLogin(credential);
+          await processSocialResponse("Google", response);
+        } catch (caught) {
+          setError(getApiErrorMessage(caught, "Unable to sign in with Google."));
+        }
+      },
+    });
+
+    googleInitializedRef.current = true;
+
+    if (googleButtonRef.current) {
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+        shape: "pill",
+        text: "signin_with",
+      });
+      setGoogleReady(true);
+    }
+
+    return true;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -89,45 +128,19 @@ export function LoginPage() {
   }, [screen]);
 
   useEffect(() => {
+    if (!isPrimaryAuthScreen) return;
+
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-    if (!clientId || !isPrimaryAuthScreen) return;
-
-    const initializeGoogle = () => {
-      window.google?.accounts.id.initialize({
-        client_id: clientId,
-        callback: async ({ credential }) => {
-          try {
-            setError("");
-            setNotice("");
-            const response = await googleLogin(credential);
-            await processSocialResponse("Google", response);
-          } catch (caught) {
-            setError(getApiErrorMessage(caught, "Unable to sign in with Google."));
-          }
-        },
-      });
-
-      if (googleButtonRef.current) {
-        googleButtonRef.current.innerHTML = "";
-        window.google?.accounts.id.renderButton(googleButtonRef.current, {
-          theme: "outline",
-          size: "large",
-          width: 320,
-          shape: "pill",
-          text: "signin_with",
-        });
-        setGoogleReady(true);
-      }
-    };
+    if (!clientId) return;
 
     const existingScript = document.getElementById("google-client-script") as HTMLScriptElement | null;
     if (window.google?.accounts.id) {
-      initializeGoogle();
+      ensureGoogleClientReady();
       return;
     }
 
     if (existingScript) {
-      existingScript.addEventListener("load", initializeGoogle, { once: true });
+      existingScript.addEventListener("load", ensureGoogleClientReady, { once: true });
       return;
     }
 
@@ -135,8 +148,12 @@ export function LoginPage() {
     script.id = "google-client-script";
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
-    script.onload = initializeGoogle;
+    script.addEventListener("load", ensureGoogleClientReady, { once: true });
     document.body.appendChild(script);
+
+    return () => {
+      script.removeEventListener("load", ensureGoogleClientReady);
+    };
   }, [googleLogin, isPrimaryAuthScreen]);
 
   useEffect(() => {
@@ -370,13 +387,12 @@ export function LoginPage() {
   };
 
   const triggerGoogleLogin = () => {
-    const renderedButton = googleButtonRef.current?.querySelector("button");
-    if (renderedButton instanceof HTMLButtonElement) {
-      renderedButton.click();
+    if (!ensureGoogleClientReady()) {
+      setError("Google Sign-In is still loading. Please try again in a moment.");
       return;
     }
 
-    setError("Google Sign-In is still loading. Please try again in a moment.");
+    window.google?.accounts?.id.prompt();
   };
 
   return (

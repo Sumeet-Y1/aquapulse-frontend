@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import { ArrowLeft, ArrowRight, ChevronDown, Droplets, Facebook, Home, KeyRound, RotateCcw, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Droplets, Home, KeyRound, RotateCcw, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Footer } from "../components/Footer";
@@ -19,21 +19,13 @@ declare global {
         };
       };
     };
-    FB?: {
-      init: (config: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
-      login: (
-        callback: (response: { status?: string; authResponse?: { accessToken: string } | null }) => void,
-        options?: Record<string, unknown>,
-      ) => void;
-    };
-    fbAsyncInit?: () => void;
   }
 }
 
 type AuthScreen = "login" | "signup" | "verify-email" | "forgot-request" | "forgot-reset";
 
 type PendingSocialSignup = {
-  provider: "Google" | "Facebook";
+  provider: "Google";
   email: string;
   fullName: string;
 };
@@ -48,7 +40,6 @@ export function LoginPage() {
     forgotPassword,
     resetPassword,
     googleLogin,
-    facebookLogin,
     completeGoogleSignup,
   } = useAuth();
   const navigate = useNavigate();
@@ -61,14 +52,12 @@ export function LoginPage() {
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
-  const [facebookReady, setFacebookReady] = useState(false);
   const [pendingSocialSignup, setPendingSocialSignup] = useState<PendingSocialSignup | null>(null);
   const [googleRole, setGoogleRole] = useState<Role | null>(null);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement | null>(null);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const googleInitializedRef = useRef(false);
-  const facebookReadyRef = useRef(false);
 
   const isPrimaryAuthScreen = screen === "login" || screen === "signup";
   const loginMode = screen === "login";
@@ -178,45 +167,6 @@ export function LoginPage() {
       script.removeEventListener("load", ensureGoogleClientReady);
     };
   }, [googleLogin, isPrimaryAuthScreen]);
-
-  useEffect(() => {
-    const appId = import.meta.env.VITE_FACEBOOK_APP_ID as string | undefined;
-    if (!appId || !isPrimaryAuthScreen) return;
-
-    const initializeFacebook = () => {
-      if (!window.FB) return;
-      window.FB.init({
-        appId,
-        cookie: true,
-        xfbml: false,
-        version: "v20.0",
-      });
-      setFacebookReady(true);
-      facebookReadyRef.current = true;
-    };
-
-    window.fbAsyncInit = initializeFacebook;
-
-    if (window.FB) {
-      initializeFacebook();
-      return;
-    }
-
-    const scriptId = "facebook-jssdk";
-    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (existingScript) {
-      existingScript.addEventListener("load", initializeFacebook, { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.src = "https://connect.facebook.net/en_US/sdk.js";
-    script.async = true;
-    script.defer = true;
-    script.onload = initializeFacebook;
-    document.body.appendChild(script);
-  }, [isPrimaryAuthScreen]);
 
   if (isAuthenticated) return <Navigate to="/" replace />;
 
@@ -355,46 +305,8 @@ export function LoginPage() {
     }
   };
 
-  const handleFacebookLogin = async () => {
-    setError("");
-    setNotice("");
-
-    try {
-      if (!facebookReady) {
-        setSaving(true);
-        const becameReady = await waitForCondition(() => facebookReadyRef.current || Boolean(window.FB));
-        setSaving(false);
-
-        if (!becameReady || !window.FB) {
-          setError("Facebook Sign-In couldn't load. Please refresh the page and try again.");
-          return;
-        }
-      }
-
-      setSaving(true);
-
-      const accessToken = await new Promise<string>((resolve, reject) => {
-        window.FB?.login((fbResponse) => {
-          if (fbResponse.authResponse?.accessToken) {
-            resolve(fbResponse.authResponse.accessToken);
-            return;
-          }
-
-          reject(new Error("Facebook login was cancelled or did not return an access token."));
-        }, { scope: "email,public_profile", return_scopes: true });
-      });
-
-      const response = await facebookLogin(accessToken);
-      await processSocialResponse("Facebook", response);
-    } catch (caught) {
-      setError(getError(caught, "Unable to sign in with Facebook."));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const showLoginPrimaryActions = screen === "login" || screen === "signup";
-  const processSocialResponse = async (provider: "Google" | "Facebook", response: GoogleAuthResponse) => {
+  const processSocialResponse = async (provider: "Google", response: GoogleAuthResponse) => {
     if (response.needsRoleSelection) {
       if (!response.pendingEmail || !response.pendingFullName) {
         setError(`${provider} sign-in needs role selection, but the account details were incomplete.`);
@@ -449,7 +361,8 @@ export function LoginPage() {
   };
 
   return (
-    <main className="login-bg flex min-h-screen flex-col p-3 text-[#22314A] sm:p-6 animate-[fadeIn_0.6s_ease-out]">
+    <main className="login-bg relative flex min-h-screen flex-col overflow-hidden p-3 text-[#22314A] sm:p-6 animate-[fadeIn_0.6s_ease-out]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(191,227,247,0.9),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(43,108,176,0.12),_transparent_28%),linear-gradient(180deg,_#f8fcff_0%,_#eff7fd_100%)]" />
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -468,20 +381,20 @@ export function LoginPage() {
           100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
-      <section className="mx-auto grid w-full flex-1 max-w-7xl overflow-hidden rounded-[32px] border border-white/70 bg-white/92 shadow-[0_30px_80px_-40px_rgba(43,108,176,0.35)] transition-shadow duration-500 hover:shadow-[0_35px_90px_-35px_rgba(43,108,176,0.4)] lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="flex items-center bg-white p-6 sm:p-10">
-          <div className="w-full [animation:riseIn_0.55s_ease-out_both]">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#2B6CB0] transition-transform duration-300 hover:translate-x-0.5">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#EAF4FB] transition-transform duration-300 hover:scale-105">
+      <section className="relative mx-auto grid w-full flex-1 max-w-7xl overflow-hidden rounded-[36px] border border-white/80 bg-white/88 shadow-[0_30px_80px_-36px_rgba(43,108,176,0.32)] backdrop-blur-xl transition-shadow duration-500 hover:shadow-[0_40px_100px_-36px_rgba(43,108,176,0.38)] lg:grid-cols-[1fr_1.08fr]">
+        <div className="flex items-center bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(247,251,254,0.92))] p-6 sm:p-10">
+          <div className="w-full max-w-xl [animation:riseIn_0.55s_ease-out_both]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#D7E6F5] bg-white/80 px-4 py-2 text-sm font-semibold text-[#2B6CB0] shadow-[0_14px_30px_-18px_rgba(43,108,176,0.35)] transition-transform duration-300 hover:-translate-y-0.5">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-[#EAF4FB]">
                 <Droplets size={20} />
               </span>
               AquaPulse
             </div>
 
-            <p className="mt-8 text-sm font-medium uppercase tracking-[0.28em] text-[#5B9BD5]">
+            <p className="mt-8 text-sm font-medium uppercase tracking-[0.32em] text-[#5B9BD5]">
               Residential RWH platform
             </p>
-            <h2 className="mt-3 text-4xl font-semibold leading-tight text-[#1B2B45] transition-all duration-300 [animation:riseIn_0.6s_ease-out_0.05s_both]">
+            <h2 className="mt-3 text-4xl font-semibold leading-tight text-[#13233D] transition-all duration-300 sm:text-5xl [animation:riseIn_0.6s_ease-out_0.05s_both]">
               {screen === "login"
                 ? "Welcome back"
                 : screen === "signup"
@@ -492,7 +405,7 @@ export function LoginPage() {
                       ? "Forgot password?"
                       : "Reset your password"}
             </h2>
-            <p className="mt-3 text-sm leading-6 text-[#5B6B85] [animation:riseIn_0.6s_ease-out_0.1s_both]">
+            <p className="mt-3 max-w-lg text-sm leading-7 text-[#5B6B85] sm:text-[15px] [animation:riseIn_0.6s_ease-out_0.1s_both]">
               {screen === "login"
                 ? "Sign in to check on your society's rainwater storage and rainfall."
                 : screen === "signup"
@@ -503,6 +416,19 @@ export function LoginPage() {
                     ? "We'll send a reset code to your email if it's registered."
                       : "Use the code from your email to set a new password."}
             </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {[
+                { title: "Live data", body: "Track storage and rainfall in real time." },
+                { title: "Simple access", body: "Verify once and keep your workspace in sync." },
+                { title: "Clean workflow", body: "Move from sign in to dashboard without friction." },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl border border-[#D7E6F5] bg-white/85 px-4 py-3 shadow-[0_14px_32px_-24px_rgba(43,108,176,0.45)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5B9BD5]">{item.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-[#5B6B85]">{item.body}</p>
+                </div>
+              ))}
+            </div>
 
             {notice && (
               <p className="mt-6 rounded-2xl border border-[#BFD7EC] bg-[#F7FBFE] px-4 py-3 text-sm text-[#22314A] [animation:popIn_0.3s_ease-out_both]">
@@ -617,7 +543,7 @@ export function LoginPage() {
                 )}
 
                 <button
-                  className="h-12 rounded-2xl bg-[#2B6CB0] text-sm font-semibold text-white transition-all duration-300 ease-out hover:bg-[#245C97] hover:shadow-lg hover:shadow-[#2B6CB0]/25 active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
+                  className="h-12 rounded-2xl bg-[linear-gradient(135deg,_#2B6CB0,_#255E98)] text-sm font-semibold text-white shadow-[0_18px_40px_-20px_rgba(43,108,176,0.6)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_26px_50px_-24px_rgba(43,108,176,0.7)] active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
                   disabled={saving}
                 >
                   {saving ? "Working..." : screen === "login" ? "Sign in" : "Create account"}
@@ -832,23 +758,19 @@ export function LoginPage() {
 
                 <button
                   type="button"
-                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D7E6F5] bg-white px-4 text-sm font-semibold text-[#22314A] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#F7FBFE] hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-[#D7E6F5] bg-white px-4 text-sm font-semibold text-[#22314A] shadow-[0_14px_34px_-26px_rgba(27,43,69,0.55)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[#BFD7EC] hover:bg-[#F7FBFE] hover:shadow-[0_18px_40px_-24px_rgba(43,108,176,0.28)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={triggerGoogleLogin}
                   disabled={saving || !googleReady}
                 >
-                  <GoogleMark />
-                  {googleReady ? "Sign in with Google" : "Loading Google..."}
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-white shadow-[0_10px_24px_-18px_rgba(0,0,0,0.5)]">
+                    <GoogleMark />
+                  </span>
+                  <span>{googleReady ? "Continue with Google" : "Loading Google..."}</span>
                 </button>
 
-                <button
-                  type="button"
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D7E6F5] bg-white px-4 text-sm font-semibold text-[#22314A] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#F7FBFE] hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={handleFacebookLogin}
-                  disabled={saving || !facebookReady}
-                >
-                  <Facebook size={18} className="text-[#1877F2]" />
-                  {facebookReady ? "Continue with Facebook" : "Loading Facebook..."}
-                </button>
+                <p className="mt-3 text-center text-xs leading-5 text-[#7A8BA6]">
+                  Secure Google sign in for verified AquaPulse accounts. No Facebook sign-in is enabled on this page.
+                </p>
 
                 <button
                   type="button"
@@ -1064,7 +986,7 @@ export function LoginPage() {
         </Modal>
       )}
 
-      <Footer className="mt-3" />
+      <Footer className="relative z-10 mt-3" />
     </main>
   );
 }

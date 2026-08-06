@@ -68,6 +68,7 @@ export function LoginPage() {
   const roleMenuRef = useRef<HTMLDivElement | null>(null);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const googleInitializedRef = useRef(false);
+  const facebookReadyRef = useRef(false);
 
   const isPrimaryAuthScreen = screen === "login" || screen === "signup";
   const loginMode = screen === "login";
@@ -108,6 +109,28 @@ export function LoginPage() {
     }
 
     return true;
+  };
+
+  const waitForCondition = (checkFn: () => boolean, timeoutMs = 5000, intervalMs = 150) => {
+    return new Promise<boolean>((resolve) => {
+      const start = Date.now();
+
+      const poll = () => {
+        if (checkFn()) {
+          resolve(true);
+          return;
+        }
+
+        if (Date.now() - start >= timeoutMs) {
+          resolve(false);
+          return;
+        }
+
+        setTimeout(poll, intervalMs);
+      };
+
+      poll();
+    });
   };
 
   useEffect(() => {
@@ -169,6 +192,7 @@ export function LoginPage() {
         version: "v20.0",
       });
       setFacebookReady(true);
+      facebookReadyRef.current = true;
     };
 
     window.fbAsyncInit = initializeFacebook;
@@ -332,16 +356,23 @@ export function LoginPage() {
   };
 
   const handleFacebookLogin = async () => {
-    if (!facebookReady) {
-      setError("Facebook Sign-In is still loading. Please try again in a moment.");
-      return;
-    }
-
-    setSaving(true);
     setError("");
     setNotice("");
 
     try {
+      if (!facebookReady) {
+        setSaving(true);
+        const becameReady = await waitForCondition(() => facebookReadyRef.current || Boolean(window.FB));
+        setSaving(false);
+
+        if (!becameReady || !window.FB) {
+          setError("Facebook Sign-In couldn't load. Please refresh the page and try again.");
+          return;
+        }
+      }
+
+      setSaving(true);
+
       const accessToken = await new Promise<string>((resolve, reject) => {
         window.FB?.login((fbResponse) => {
           if (fbResponse.authResponse?.accessToken) {
@@ -387,12 +418,34 @@ export function LoginPage() {
   };
 
   const triggerGoogleLogin = () => {
-    if (!ensureGoogleClientReady()) {
-      setError("Google Sign-In is still loading. Please try again in a moment.");
+    setError("");
+    setNotice("");
+
+    const promptGoogle = () => {
+      if (!ensureGoogleClientReady()) {
+        return false;
+      }
+
+      window.google?.accounts?.id.prompt();
+      return true;
+    };
+
+    if (promptGoogle()) {
       return;
     }
 
-    window.google?.accounts?.id.prompt();
+    void (async () => {
+      setSaving(true);
+      const becameReady = await waitForCondition(() => ensureGoogleClientReady());
+      setSaving(false);
+
+      if (!becameReady) {
+        setError("Google Sign-In couldn't load. Please refresh the page and try again.");
+        return;
+      }
+
+      window.google?.accounts?.id.prompt();
+    })();
   };
 
   return (

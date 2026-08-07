@@ -15,7 +15,6 @@ declare global {
         id: {
           initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
           renderButton: (element: HTMLElement, options: Record<string, unknown>) => void;
-          prompt: () => void;
         };
       };
     };
@@ -98,28 +97,6 @@ export function LoginPage() {
     }
 
     return true;
-  };
-
-  const waitForCondition = (checkFn: () => boolean, timeoutMs = 5000, intervalMs = 150) => {
-    return new Promise<boolean>((resolve) => {
-      const start = Date.now();
-
-      const poll = () => {
-        if (checkFn()) {
-          resolve(true);
-          return;
-        }
-
-        if (Date.now() - start >= timeoutMs) {
-          resolve(false);
-          return;
-        }
-
-        setTimeout(poll, intervalMs);
-      };
-
-      poll();
-    });
   };
 
   useEffect(() => {
@@ -327,37 +304,6 @@ export function LoginPage() {
     }
 
     setError(`${provider} sign-in returned an unexpected response.`);
-  };
-
-  const triggerGoogleLogin = () => {
-    setError("");
-    setNotice("");
-
-    const promptGoogle = () => {
-      if (!ensureGoogleClientReady()) {
-        return false;
-      }
-
-      window.google?.accounts?.id.prompt();
-      return true;
-    };
-
-    if (promptGoogle()) {
-      return;
-    }
-
-    void (async () => {
-      setSaving(true);
-      const becameReady = await waitForCondition(() => ensureGoogleClientReady());
-      setSaving(false);
-
-      if (!becameReady) {
-        setError("Google Sign-In couldn't load. Please refresh the page and try again.");
-        return;
-      }
-
-      window.google?.accounts?.id.prompt();
-    })();
   };
 
   return (
@@ -749,24 +695,13 @@ export function LoginPage() {
               <>
                 <div
                   ref={googleButtonRef}
-                  aria-hidden="true"
-                  className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+                  className="mt-5 min-h-[48px]"
                 />
                 {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
                   <p className="mt-2 text-xs text-[#8FA4C0]">Set VITE_GOOGLE_CLIENT_ID to enable Google Sign-In.</p>
                 )}
 
-                <button
-                  type="button"
-                  className="mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-[#D7E6F5] bg-white px-4 text-sm font-semibold text-[#22314A] shadow-[0_14px_34px_-26px_rgba(27,43,69,0.55)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[#BFD7EC] hover:bg-[#F7FBFE] hover:shadow-[0_18px_40px_-24px_rgba(43,108,176,0.28)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={triggerGoogleLogin}
-                  disabled={saving || !googleReady}
-                >
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-white shadow-[0_10px_24px_-18px_rgba(0,0,0,0.5)]">
-                    <GoogleMark />
-                  </span>
-                  <span>{googleReady ? "Continue with Google" : "Loading Google..."}</span>
-                </button>
+                {!googleReady && <p className="mt-3 text-xs text-[#8FA4C0]">Loading Google sign-in...</p>}
 
                 <button
                   type="button"
@@ -1025,15 +960,4 @@ function getError(error: unknown, fallback = "Something went wrong. Please try a
   }
 
   return fallback;
-}
-
-function GoogleMark() {
-  return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.28 9.2c0-.64-.06-1.25-.17-1.84H9v3.48h4.62a4.07 4.07 0 0 1-1.77 2.67v2.22h2.86c1.67-1.53 2.57-3.79 2.57-6.53Z" fill="#4285F4" />
-      <path d="M9 18c2.39 0 4.4-.79 5.86-2.14l-2.86-2.22c-.79.53-1.8.84-3 .84a5.2 5.2 0 0 1-4.89-3.55H1.17v2.3A8.99 8.99 0 0 0 9 18Z" fill="#34A853" />
-      <path d="M4.11 11.08c-.2-.59-.31-1.22-.31-1.88s.11-1.29.31-1.88v-2.3H1.17A8.99 8.99 0 0 0 0 9.2c0 1.45.35 2.82 1.17 4.02l2.94-2.14Z" fill="#FBBC05" />
-      <path d="M9 3.56c1.3 0 2.46.45 3.37 1.33l2.53-2.53A8.5 8.5 0 0 0 9 0 8.99 8.99 0 0 0 1.17 4.02l2.94 2.18A5.2 5.2 0 0 1 9 3.56Z" fill="#EA4335" />
-    </svg>
-  );
 }

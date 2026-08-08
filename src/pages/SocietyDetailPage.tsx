@@ -214,136 +214,138 @@ export function SocietyDetailPage() {
         </GlassCard>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <GlassCard className="p-5 md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="chip w-fit">Standard invite code</p>
-              <h2 className="mt-4 text-2xl font-semibold">Generate a 24-hour code</h2>
-              <p className="mt-2 max-w-xl text-sm text-[#5B6B85]">
-                Create a fresh code for remote sharing. Generating a new one immediately invalidates the previous standard code.
-              </p>
-            </div>
-            <button className="secondary-btn" disabled={standardLoading} aria-busy={standardLoading} onClick={() => void handleGenerateStandardCode()}>
-              <RefreshCw size={16} /> {standardCode ? "Generate new code" : "Generate invite code"}
-            </button>
-          </div>
-
-          {standardError && <ErrorState message={standardError} />}
-
-          {standardLoading ? (
-            <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
-              Generating a new invite code...
-            </div>
-          ) : standardCode ? (
-            <div className="mt-6 grid gap-4">
-              {standardExpired ? (
-                <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-900">
-                  This invite code has expired. Generate a new one to share access again.
-                </div>
-              ) : (
-                <div className="rounded-3xl border border-[#D7E8F6] bg-white px-4 py-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-[#8FA4C0]">Current code</p>
-                  <p className="mt-3 break-all font-mono text-3xl font-semibold tracking-[0.2em] text-[#22314A] md:text-4xl">
-                    {standardCode.code}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3">
-                {!standardExpired && (
-                  <button className="secondary-btn" onClick={handleCopyStandardCode}>
-                    <Copy size={16} /> {standardCopied ? "Copied" : "Copy code"}
-                  </button>
-                )}
-                <div className="rounded-full border border-[#D7E8F6] bg-[#F7FBFE] px-4 py-2 text-sm text-[#5B6B85]">
-                  {standardExpired ? "Expired" : formatStandardCountdown(standardState?.remainingMs ?? 0)}
-                </div>
-                <div className="rounded-full border border-[#D7E8F6] bg-[#F7FBFE] px-4 py-2 text-sm text-[#5B6B85]">
-                  Expires {standardExpired ? "now" : formatLocalDateTime(standardCode.expiresAt)}
-                </div>
+      {canManageSocieties ? (
+        <section className="grid gap-4 xl:grid-cols-2">
+          <GlassCard className="p-5 md:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="chip w-fit">Standard invite code</p>
+                <h2 className="mt-4 text-2xl font-semibold">Generate a 24-hour code</h2>
+                <p className="mt-2 max-w-xl text-sm text-[#5B6B85]">
+                  Create a fresh code for remote sharing. Generating a new one immediately invalidates the previous standard code.
+                </p>
               </div>
+              <button className="secondary-btn" disabled={standardLoading} aria-busy={standardLoading} onClick={() => void handleGenerateStandardCode()}>
+                <RefreshCw size={16} /> {standardCode ? "Generate new code" : "Generate invite code"}
+              </button>
             </div>
-          ) : (
-            <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
-              No invite code is active right now. Generate one when you are ready to share access.
-            </div>
-          )}
-        </GlassCard>
 
-        <GlassCard className="p-5 md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="chip w-fit">QR code</p>
-              <h2 className="mt-4 text-2xl font-semibold">Generate a 5-minute QR invite</h2>
-              <p className="mt-2 max-w-xl text-sm text-[#5B6B85]">
-                Best for in-person sharing. The QR code expires quickly, so the screen switches to an expired state as soon as time runs out.
-              </p>
-            </div>
-            <button className="secondary-btn" disabled={qrLoading} aria-busy={qrLoading} onClick={() => void handleGenerateQrCode()}>
-              <QrCode size={16} /> {qrCode ? "Generate new QR code" : "Generate QR code"}
-            </button>
-          </div>
+            {standardError && <ErrorState message={standardError} />}
 
-          {qrError && <ErrorState message={qrError} />}
-
-          {qrLoading ? (
-            <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
-              Generating a new QR code...
-            </div>
-          ) : qrCode ? (
-            <div className="mt-6 grid gap-4">
-              {qrExpired ? (
-                <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-900">
-                  <p className="text-lg font-semibold">Expired</p>
-                  <p className="mt-2">This QR code is no longer valid. Generate a new one to continue sharing access.</p>
-                </div>
-              ) : (
-                <div className="rounded-[28px] border border-[#D7E8F6] bg-white p-5">
-                  <div className="mx-auto grid w-full max-w-[320px] gap-4">
-                    <div className="grid place-items-center rounded-[28px] bg-[#F7FBFE] p-5">
-                      <img
-                        alt="Society invite QR code"
-                        className="h-[280px] w-[280px] max-w-full rounded-3xl bg-white p-4 shadow-[0_12px_32px_rgba(43,108,176,0.08)]"
-                        src={getApiUrl(`/api/societies/qr-image/${encodeURIComponent(qrCode.code)}`)}
-                      />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs uppercase tracking-[0.22em] text-[#8FA4C0]">Scan or share</p>
-                      <p className="mt-2 font-mono text-lg font-semibold tracking-[0.2em] text-[#22314A]">{qrCode.code}</p>
-                    </div>
+            {standardLoading ? (
+              <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
+                Generating a new invite code...
+              </div>
+            ) : standardCode ? (
+              <div className="mt-6 grid gap-4">
+                {standardExpired ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-900">
+                    This invite code has expired. Generate a new one to share access again.
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="rounded-3xl border border-[#D7E8F6] bg-white px-4 py-5">
+                    <p className="text-xs uppercase tracking-[0.22em] text-[#8FA4C0]">Current code</p>
+                    <p className="mt-3 break-all font-mono text-3xl font-semibold tracking-[0.2em] text-[#22314A] md:text-4xl">
+                      {standardCode.code}
+                    </p>
+                  </div>
+                )}
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  {!qrExpired && (
-                    <button className="secondary-btn" onClick={handleCopyQrCode}>
-                      <Copy size={16} /> {qrCopied ? "Copied" : "Copy code"}
+                  {!standardExpired && (
+                    <button className="secondary-btn" onClick={handleCopyStandardCode}>
+                      <Copy size={16} /> {standardCopied ? "Copied" : "Copy code"}
                     </button>
                   )}
                   <div className="rounded-full border border-[#D7E8F6] bg-[#F7FBFE] px-4 py-2 text-sm text-[#5B6B85]">
-                    <Clock3 size={15} className="mr-1 inline-block text-leaf" />
-                    {qrExpired ? "Expired" : formatQrCountdown(qrState?.remainingMs ?? 0)}
+                    {standardExpired ? "Expired" : formatStandardCountdown(standardState?.remainingMs ?? 0)}
+                  </div>
+                  <div className="rounded-full border border-[#D7E8F6] bg-[#F7FBFE] px-4 py-2 text-sm text-[#5B6B85]">
+                    Expires {standardExpired ? "now" : formatLocalDateTime(standardCode.expiresAt)}
                   </div>
                 </div>
-                <button className="secondary-btn" disabled={qrLoading} aria-busy={qrLoading} onClick={() => void handleGenerateQrCode()}>
-                  <RefreshCw size={16} /> {qrExpired ? "Generate new QR code" : "Refresh QR code"}
-                </button>
               </div>
+            ) : (
+              <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
+                No invite code is active right now. Generate one when you are ready to share access.
+              </div>
+            )}
+          </GlassCard>
 
-              <p className="text-sm text-[#5B6B85]">
-                Expires {qrExpired ? "now" : formatLocalDateTime(qrCode.expiresAt)}. A new QR code replaces the previous one immediately.
-              </p>
+          <GlassCard className="p-5 md:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="chip w-fit">QR code</p>
+                <h2 className="mt-4 text-2xl font-semibold">Generate a 5-minute QR invite</h2>
+                <p className="mt-2 max-w-xl text-sm text-[#5B6B85]">
+                  Best for in-person sharing. The QR code expires quickly, so the screen switches to an expired state as soon as time runs out.
+                </p>
+              </div>
+              <button className="secondary-btn" disabled={qrLoading} aria-busy={qrLoading} onClick={() => void handleGenerateQrCode()}>
+                <QrCode size={16} /> {qrCode ? "Generate new QR code" : "Generate QR code"}
+              </button>
             </div>
-          ) : (
-            <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
-              No QR code is active right now. Generate one when residents are ready to scan and join.
-            </div>
-          )}
-        </GlassCard>
-      </section>
+
+            {qrError && <ErrorState message={qrError} />}
+
+            {qrLoading ? (
+              <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
+                Generating a new QR code...
+              </div>
+            ) : qrCode ? (
+              <div className="mt-6 grid gap-4">
+                {qrExpired ? (
+                  <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-900">
+                    <p className="text-lg font-semibold">Expired</p>
+                    <p className="mt-2">This QR code is no longer valid. Generate a new one to continue sharing access.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-[28px] border border-[#D7E8F6] bg-white p-5">
+                    <div className="mx-auto grid w-full max-w-[320px] gap-4">
+                      <div className="grid place-items-center rounded-[28px] bg-[#F7FBFE] p-5">
+                        <img
+                          alt="Society invite QR code"
+                          className="h-[280px] w-[280px] max-w-full rounded-3xl bg-white p-4 shadow-[0_12px_32px_rgba(43,108,176,0.08)]"
+                          src={getApiUrl(`/api/societies/qr-image/${encodeURIComponent(qrCode.code)}`)}
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[#8FA4C0]">Scan or share</p>
+                        <p className="mt-2 font-mono text-lg font-semibold tracking-[0.2em] text-[#22314A]">{qrCode.code}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {!qrExpired && (
+                      <button className="secondary-btn" onClick={handleCopyQrCode}>
+                        <Copy size={16} /> {qrCopied ? "Copied" : "Copy code"}
+                      </button>
+                    )}
+                    <div className="rounded-full border border-[#D7E8F6] bg-[#F7FBFE] px-4 py-2 text-sm text-[#5B6B85]">
+                      <Clock3 size={15} className="mr-1 inline-block text-leaf" />
+                      {qrExpired ? "Expired" : formatQrCountdown(qrState?.remainingMs ?? 0)}
+                    </div>
+                  </div>
+                  <button className="secondary-btn" disabled={qrLoading} aria-busy={qrLoading} onClick={() => void handleGenerateQrCode()}>
+                    <RefreshCw size={16} /> {qrExpired ? "Generate new QR code" : "Refresh QR code"}
+                  </button>
+                </div>
+
+                <p className="text-sm text-[#5B6B85]">
+                  Expires {qrExpired ? "now" : formatLocalDateTime(qrCode.expiresAt)}. A new QR code replaces the previous one immediately.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-6 rounded-3xl border border-dashed border-[#BFD7EC] bg-white/70 p-6 text-sm text-[#5B6B85]">
+                No QR code is active right now. Generate one when residents are ready to scan and join.
+              </div>
+            )}
+          </GlassCard>
+        </section>
+      ) : null}
 
       <section className="flex flex-wrap items-center justify-between gap-3">
         <div>

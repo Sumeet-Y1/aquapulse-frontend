@@ -25,8 +25,7 @@ export function DashboardPage() {
   const [modal, setModal] = useState<ModalMode>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
-  const [notice, setNotice] = useState<null | { title: string; detail: string; inviteCode?: string }>(null);
-  const [editingInviteCopied, setEditingInviteCopied] = useState(false);
+  const [notice, setNotice] = useState<null | { title: string; detail: string }>(null);
 
   useEffect(() => {
     if (!selectedSociety) {
@@ -125,24 +124,8 @@ export function DashboardPage() {
       {error && <ErrorState message={error} />}
       {notice && (
         <div className="rounded-3xl border border-[#BFD7EC] bg-[#F7FBFE] px-5 py-4 text-sm text-[#22314A]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold">{notice.title}</p>
-              <p className="mt-1 text-[#5B6B85]">{notice.detail}</p>
-            </div>
-            {notice.inviteCode && (
-              <button
-                className="secondary-btn"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(notice.inviteCode!);
-                  setEditingInviteCopied(true);
-                  window.setTimeout(() => setEditingInviteCopied(false), 1500);
-                }}
-              >
-                <Copy size={16} /> {editingInviteCopied ? "Copied" : notice.inviteCode}
-              </button>
-            )}
-          </div>
+          <p className="font-semibold">{notice.title}</p>
+          <p className="mt-1 text-[#5B6B85]">{notice.detail}</p>
         </div>
       )}
 
@@ -256,8 +239,7 @@ export function DashboardPage() {
                   const created = await createSociety(payload);
                   setNotice({
                     title: `Created ${created.name}`,
-                    detail: `Invite code ready to share with residents.`,
-                    inviteCode: created.inviteCode,
+                    detail: "Open the society view to generate a time-limited invite code or QR code.",
                   });
                   setModal(null);
                 } catch (caught) {

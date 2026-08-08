@@ -171,6 +171,7 @@ export function SocietyDetailPage() {
 
   const standardExpired = standardState?.expired ?? false;
   const qrExpired = qrState?.expired ?? false;
+  const qrJoinUrl = `${window.location.origin}/join?code=${encodeURIComponent(qrCode?.code ?? "")}`;
 
   return (
     <div className="grid gap-6">
@@ -306,7 +307,7 @@ export function SocietyDetailPage() {
                         <img
                           alt="Society invite QR code"
                           className="h-[280px] w-[280px] max-w-full rounded-3xl bg-white p-4 shadow-[0_12px_32px_rgba(43,108,176,0.08)]"
-                          src={getApiUrl(`/api/societies/qr-image/${encodeURIComponent(qrCode.code)}`)}
+                          src={getApiUrl(`/api/societies/qr-image/${encodeURIComponent(qrJoinUrl)}`)}
                         />
                       </div>
                       <div className="text-center">

@@ -1,7 +1,7 @@
 import { AxiosError } from "axios";
 import { ArrowLeft, ArrowRight, ChevronDown, Droplets, Home, KeyRound, RotateCcw, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, type Location } from "react-router-dom";
 import { Footer } from "../components/Footer";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
@@ -42,6 +42,8 @@ export function LoginPage() {
     completeGoogleSignup,
   } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const postAuthRedirect = getPostAuthRedirect(location.state);
 
   const [screen, setScreen] = useState<AuthScreen>("login");
   const [authForm, setAuthForm] = useState({ fullName: "", email: "", password: "", role: "ADMIN" });
@@ -145,7 +147,7 @@ export function LoginPage() {
     };
   }, [googleLogin, isPrimaryAuthScreen]);
 
-  if (isAuthenticated) return <Navigate to="/" replace />;
+  if (isAuthenticated) return <Navigate to={postAuthRedirect} replace />;
 
   const submitPrimaryAuth = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -156,7 +158,7 @@ export function LoginPage() {
     try {
       if (screen === "login") {
         await login({ email: authForm.email, password: authForm.password });
-        navigate("/");
+        navigate(postAuthRedirect, { replace: true });
         return;
       }
 
@@ -194,7 +196,7 @@ export function LoginPage() {
         email: verificationForm.email,
         code: verificationForm.code,
       });
-      navigate("/");
+      navigate(postAuthRedirect, { replace: true });
     } catch (caught) {
       setError(getError(caught));
     } finally {
@@ -273,7 +275,7 @@ export function LoginPage() {
         role,
       });
       setPendingSocialSignup(null);
-      navigate("/");
+      navigate(postAuthRedirect, { replace: true });
     } catch (caught) {
       setError(getError(caught));
     } finally {
@@ -299,7 +301,7 @@ export function LoginPage() {
     }
 
     if (response.authResponse) {
-      navigate("/");
+      navigate(postAuthRedirect, { replace: true });
       return;
     }
 
@@ -960,4 +962,12 @@ function getError(error: unknown, fallback = "Something went wrong. Please try a
   }
 
   return fallback;
+}
+
+function getPostAuthRedirect(state: unknown) {
+  const from = (state as { from?: Location } | null | undefined)?.from;
+  if (from) {
+    return `${from.pathname}${from.search}${from.hash}`;
+  }
+  return "/";
 }

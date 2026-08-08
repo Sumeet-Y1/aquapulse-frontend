@@ -10,6 +10,7 @@ import type {
   LoginRequest,
   MaintenanceLogRequest,
   MaintenanceLogResponse,
+  InviteCodeResponse,
   RegisterResponse,
   RegisterRequest,
   RWHUnitRequest,
@@ -85,6 +86,12 @@ api.interceptors.request.use((config) => {
 
 const unwrap = <T>(promise: Promise<{ data: T }>) => promise.then((response) => response.data);
 
+export function getApiUrl(path: string) {
+  const baseURL = api.defaults.baseURL?.replace(/\/+$/, "") ?? "";
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${baseURL}${normalizedPath}`;
+}
+
 export function getApiErrorMessage(error: unknown, fallback = "Something went wrong. Please try again.") {
   if (axios.isAxiosError(error)) {
     if (error.message === "Network Error") {
@@ -139,6 +146,8 @@ export const societiesApi = {
   join: (inviteCode: string) => unwrap(api.post<SocietyResponse>("/api/societies/join", { inviteCode })),
   update: (id: number, payload: SocietyRequest) => unwrap(api.put<SocietyResponse>(`/api/societies/${id}`, payload)),
   remove: (id: number) => unwrap(api.delete<void>(`/api/societies/${id}`)),
+  generateInviteCode: (id: number) => unwrap(api.post<InviteCodeResponse>(`/api/societies/${id}/invite-code`)),
+  generateQrCode: (id: number) => unwrap(api.post<InviteCodeResponse>(`/api/societies/${id}/qr-code`)),
 };
 
 export const unitsApi = {

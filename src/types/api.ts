@@ -70,6 +70,14 @@ export interface SocietyResponse extends SocietyRequest {
   inviteCode: string;
 }
 
+export type InviteCodeType = "STANDARD" | "QR";
+
+export interface InviteCodeResponse {
+  code: string;
+  expiresAt: string;
+  type: InviteCodeType;
+}
+
 export interface RWHUnitRequest {
   tankCapacityLiters: number;
   rooftopAreaSqm: number;

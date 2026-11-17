@@ -50,7 +50,9 @@ export function LoginPage() {
   const location = useLocation();
   const postAuthRedirect = getPostAuthRedirect(location.state);
 
-  const [screen, setScreen] = useState<AuthScreen>("login");
+  const [screen, setScreen] = useState<AuthScreen>(() =>
+    new URLSearchParams(location.search).get("mode") === "signup" ? "signup" : "login",
+  );
   const [authForm, setAuthForm] = useState({ fullName: "", email: "", password: "", role: "ADMIN" });
   const [verificationForm, setVerificationForm] = useState({ email: "", code: "" });
   const [forgotForm, setForgotForm] = useState({ email: "", code: "", newPassword: "" });

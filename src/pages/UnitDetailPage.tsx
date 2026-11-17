@@ -148,11 +148,11 @@ export function UnitDetailPage() {
             {chartData.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.12)" vertical={false} />
-                  <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
-                  <YAxis stroke="rgba(255,255,255,0.5)" />
-                  <Tooltip contentStyle={{ background: "#1A1F1A", border: "1px solid rgba(255,255,255,.16)", borderRadius: 16 }} />
-                  <Line type="monotone" dataKey="storage" stroke="#A8E063" strokeWidth={3} dot={false} />
+                  <CartesianGrid stroke="rgba(43,108,176,0.15)" vertical={false} />
+                  <XAxis dataKey="date" stroke="#8FA4C0" tick={{ fill: "#5B6B85", fontSize: 12 }} />
+                  <YAxis stroke="#8FA4C0" tick={{ fill: "#5B6B85", fontSize: 12 }} />
+                  <Tooltip contentStyle={{ background: "#FFFFFF", border: "1px solid #D7E6F5", borderRadius: 16, boxShadow: "0 12px 30px -12px rgba(43,108,176,0.35)" }} labelStyle={{ color: "#22314A", fontWeight: 600 }} itemStyle={{ color: "#2B6CB0" }} />
+                  <Line type="monotone" dataKey="storage" stroke="#2B6CB0" strokeWidth={3} dot={{ r: 4, fill: "#2B6CB0" }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (

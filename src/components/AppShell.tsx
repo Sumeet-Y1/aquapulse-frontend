@@ -12,7 +12,7 @@ export function AppShell() {
   return (
     <div className="app-bg flex min-h-screen flex-col text-[#22314A]">
       <header className="sticky top-0 z-40 px-4 py-4 md:px-8">
-        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/70 bg-white/85 px-3 py-2 shadow-glass backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-white/70 bg-white/[0.85] px-3 py-2 shadow-glass backdrop-blur-xl">
           <Link to="/" className="flex items-center gap-2 rounded-full pr-3 text-sm font-semibold">
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#2B6CB0] text-white">
               <Droplets size={20} />
@@ -41,7 +41,7 @@ export function AppShell() {
           </button>
         </div>
         {open && (
-          <div className="mx-auto mt-3 grid max-w-7xl gap-2 rounded-3xl border border-white/70 bg-white/92 p-3 shadow-glass backdrop-blur-xl md:hidden">
+          <div className="mx-auto mt-3 grid max-w-7xl gap-2 rounded-3xl border border-white/70 bg-white/[0.92] p-3 shadow-glass backdrop-blur-xl md:hidden">
             <NavLink to="/" onClick={() => setOpen(false)} className="mobile-link">
               Overview
             </NavLink>
@@ -54,7 +54,7 @@ export function AppShell() {
           </div>
         )}
       </header>
-      <main className="mx-auto flex w-full max-w-7xl flex-1 px-4 pb-10 md:px-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10 md:px-8">
         <Outlet />
       </main>
       <Footer />

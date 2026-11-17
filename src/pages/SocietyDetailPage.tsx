@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, BadgeInfo, Clock3, Copy, Pencil, Plus, QrCode, RefreshCw, Trash2, UserPlus, Droplets } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BadgeInfo, Clock3, Copy, Pencil, Plus, QrCode, RefreshCw, Trash2, UserPlus, Droplets, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { SocietyForm, UnitForm } from "../components/Forms";
@@ -213,6 +213,17 @@ export function SocietyDetailPage() {
           </p>
         </GlassCard>
       </section>
+
+      <GlassCard className="flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#EAF4FB] text-leaf"><Video size={20} /></span>
+          <div>
+            <h2 className="text-xl font-semibold">Society meetings</h2>
+            <p className="mt-1 text-sm text-[#5B6B85]">Schedule, host, and join video or audio meetings with fellow residents.</p>
+          </div>
+        </div>
+        <Link to={`/societies/${society.id}/meetings`} className="secondary-btn">View meetings</Link>
+      </GlassCard>
 
       {canManageSocieties ? (
         <section className="grid gap-4 xl:grid-cols-2">

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import type { MaintenanceLogRequest, MaintenanceStatus, RWHUnitRequest, SocietyRequest, WaterReadingRequest } from "../types/api";
+import type { MaintenanceLogRequest, MaintenanceStatus, MeetingRequest, MeetingType, RWHUnitRequest, SocietyRequest, WaterReadingRequest } from "../types/api";
 
 export function SocietyForm({
   initialValues,
@@ -143,6 +143,57 @@ export function MaintenanceForm({
       <input type="date" value={payload.nextDueDate} onChange={(event) => setPayload({ ...payload, nextDueDate: event.target.value })} />
       <textarea placeholder="Notes" value={payload.notes} onChange={(event) => setPayload({ ...payload, notes: event.target.value })} />
       <button className="primary-btn" disabled={isSaving}>{isSaving ? "Saving..." : "Add maintenance"}</button>
+    </form>
+  );
+}
+
+export function MeetingForm({
+  societyId,
+  error,
+  onSubmit,
+  isSaving,
+}: {
+  societyId: number;
+  error?: string;
+  onSubmit: (payload: MeetingRequest) => Promise<void>;
+  isSaving: boolean;
+}) {
+  const [payload, setPayload] = useState({
+    title: "",
+    description: "",
+    scheduledAt: "",
+    durationMinutes: 60,
+    type: "VIDEO" as MeetingType,
+    allowScreenShare: true,
+  });
+
+  return (
+    <form
+      className="form-grid"
+      onSubmit={(event) =>
+        handleSubmit(event, () =>
+          onSubmit({
+            ...payload,
+            societyId,
+            scheduledAt: `${payload.scheduledAt}:00`,
+          }),
+        )
+      }
+    >
+      <input required placeholder="Meeting title" value={payload.title} onChange={(event) => setPayload({ ...payload, title: event.target.value })} />
+      <textarea required placeholder="Description" value={payload.description} onChange={(event) => setPayload({ ...payload, description: event.target.value })} />
+      <input required type="datetime-local" value={payload.scheduledAt} onChange={(event) => setPayload({ ...payload, scheduledAt: event.target.value })} />
+      <input required type="number" min="1" placeholder="Duration in minutes" value={payload.durationMinutes} onChange={(event) => setPayload({ ...payload, durationMinutes: Number(event.target.value) })} />
+      <select value={payload.type} onChange={(event) => setPayload({ ...payload, type: event.target.value as MeetingType })}>
+        <option value="VIDEO">Video meeting</option>
+        <option value="AUDIO">Audio meeting</option>
+      </select>
+      <label className="flex items-center gap-3 rounded-2xl border border-[#D7E8F6] bg-[#F7FBFE] px-4 py-3 text-sm text-[#22314A]">
+        <input type="checkbox" checked={payload.allowScreenShare} onChange={(event) => setPayload({ ...payload, allowScreenShare: event.target.checked })} />
+        Allow screen sharing
+      </label>
+      {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      <button className="primary-btn" disabled={isSaving}>{isSaving ? "Scheduling..." : "Schedule meeting"}</button>
     </form>
   );
 }

@@ -123,3 +123,40 @@ export interface WeatherRainfallResponse {
 export interface InsightResponse {
   insight: string;
 }
+
+export type MeetingStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
+export type MeetingType = "VIDEO" | "AUDIO";
+
+export interface Meeting {
+  id: number;
+  title: string;
+  description: string;
+  societyId: number;
+  createdByName: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  status: MeetingStatus;
+  type: MeetingType;
+  allowScreenShare: boolean;
+}
+
+export interface MeetingRequest {
+  title: string;
+  description: string;
+  societyId: number;
+  scheduledAt: string;
+  durationMinutes: number;
+  type: MeetingType;
+  allowScreenShare: boolean;
+}
+
+export interface JoinMeetingResponse {
+  meetingId: number;
+  domain: string;
+  roomId: string;
+  displayName: string;
+  type: MeetingType;
+  allowScreenShare: boolean;
+  moderator: boolean;
+  jwt: string | null;
+}

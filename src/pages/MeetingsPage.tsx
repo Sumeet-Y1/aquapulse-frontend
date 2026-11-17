@@ -74,12 +74,20 @@ export function MeetingsPage() {
           <p className="chip w-fit">Society meetings</p>
           <h1 className="mt-4 text-4xl font-bold md:text-5xl">Meet, discuss, decide.</h1>
           <p className="mt-4 text-[#5B6B85]">{society ? `${society.name} meetings for every resident.` : "Meetings for your society."}</p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-[#5B6B85]">
+            Schedule video or audio calls for maintenance updates, rainwater reviews and society decisions. Residents join with one click once the host goes live.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="chip"><Video size={14} /> Video and audio</span>
+            <span className="chip"><MonitorUp size={14} /> Screen sharing</span>
+            <span className="chip"><UsersRound size={14} /> One-click join</span>
+          </div>
         </div>
         {isAdmin && <button className="primary-btn" onClick={() => { setModalError(""); setModalOpen(true); }}><Plus size={18} /> Schedule meeting</button>}
       </section>
 
       {error && <ErrorState message={error} />}
-      {loading ? <LoadingState label="Loading meetings..." /> : meetings.length === 0 ? <EmptyState title="No meetings yet" body="Meetings scheduled for this society will appear here." /> : (
+      {loading ? <LoadingState label="Loading meetings..." /> : meetings.length === 0 ? <MeetingsEmpty isAdmin={isAdmin} onSchedule={() => { setModalError(""); setModalOpen(true); }} /> : (
         <div className="grid gap-4 lg:grid-cols-2">
           {meetings.map((meeting) => (
             <GlassCard key={meeting.id} className="p-5 md:p-6">
@@ -130,4 +138,27 @@ export function MeetingStatusBadge({ status }: { status: MeetingStatus }) {
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function MeetingsEmpty({ isAdmin, onSchedule }: { isAdmin: boolean; onSchedule: () => void }) {
+  return (
+    <GlassCard className="p-8">
+      <div className="flex flex-col items-center text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#EAF4FB] text-[#2B6CB0]">
+          <Video size={26} />
+        </span>
+        <h2 className="mt-4 text-2xl font-semibold">No meetings yet</h2>
+        <p className="mt-2 max-w-md text-sm text-[#5B6B85]">
+          {isAdmin
+            ? "Schedule a meeting to talk through maintenance, rainfall data or anything else with your residents."
+            : "Meetings scheduled by your society admin will appear here."}
+        </p>
+        {isAdmin && (
+          <button className="primary-btn mt-5" onClick={onSchedule}>
+            <Plus size={18} /> Schedule the first meeting
+          </button>
+        )}
+      </div>
+    </GlassCard>
+  );
 }

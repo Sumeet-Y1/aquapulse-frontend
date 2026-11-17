@@ -6,6 +6,8 @@ import { LoginPage } from "./pages/LoginPage";
 import { JoinSocietyPage } from "./pages/JoinSocietyPage";
 import { SocietyDetailPage } from "./pages/SocietyDetailPage";
 import { UnitDetailPage } from "./pages/UnitDetailPage";
+import { MeetingsPage } from "./pages/MeetingsPage";
+import { MeetingRoomPage } from "./pages/MeetingRoomPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -28,6 +30,8 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="join" element={<JoinSocietyPage />} />
         <Route path="societies/:societyId" element={<SocietyDetailPage />} />
+        <Route path="societies/:societyId/meetings" element={<MeetingsPage />} />
+        <Route path="meetings/:id" element={<MeetingRoomPage />} />
         <Route path="units/:unitId" element={<UnitDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

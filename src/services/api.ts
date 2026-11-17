@@ -8,6 +8,9 @@ import type {
   GoogleAuthResponse,
   InsightResponse,
   LoginRequest,
+  Meeting,
+  MeetingRequest,
+  JoinMeetingResponse,
   MaintenanceLogRequest,
   MaintenanceLogResponse,
   InviteCodeResponse,
@@ -100,12 +103,18 @@ export function getApiErrorMessage(error: unknown, fallback = "Something went wr
 
     const status = error.response?.status;
     const responseData = error.response?.data;
+    const backendError = (responseData as { error?: string } | undefined)?.error;
     const responseMessage =
       typeof responseData === "string"
         ? responseData
         : (responseData as { message?: string; error?: string } | undefined)?.message ??
           (responseData as { error?: string } | undefined)?.error ??
           error.message;
+
+    // Backend domain errors (including meeting state and membership errors) are safe, actionable messages.
+    if (typeof backendError === "string" && backendError) {
+      return backendError;
+    }
 
     if (status === 403) {
       return "You don't have permission to do that.";
@@ -178,4 +187,16 @@ export const weatherApi = {
 
 export const insightsApi = {
   byUnit: (unitId: number) => unwrap(api.get<InsightResponse>(`/api/insights/unit/${unitId}`)),
+};
+
+export const meetingsApi = {
+  create: (payload: MeetingRequest) => unwrap(api.post<Meeting>("/api/meetings", payload)),
+  bySociety: (societyId: number) => unwrap(api.get<Meeting[]>(`/api/meetings/society/${societyId}`)),
+  get: (id: number) => unwrap(api.get<Meeting>(`/api/meetings/${id}`)),
+  join: (id: number) => unwrap(api.post<JoinMeetingResponse>(`/api/meetings/${id}/join`)),
+  leave: (id: number) => unwrap(api.post<void>(`/api/meetings/${id}/leave`)),
+  start: (id: number) => unwrap(api.post<Meeting>(`/api/meetings/${id}/start`)),
+  end: (id: number) => unwrap(api.post<Meeting>(`/api/meetings/${id}/end`)),
+  screenShare: (id: number, sharing: boolean) => unwrap(api.post<void>(`/api/meetings/${id}/screenshare`, { sharing })),
+  remove: (id: number) => unwrap(api.delete<void>(`/api/meetings/${id}`)),
 };
